@@ -11,7 +11,6 @@ import TeacherTaskView from './components/TeacherTaskView';
 import TodayTaskView from './components/TodayTaskView';
 import MyTaskView from './components/MyTaskView';
 import LiveScheduleView from './components/LiveScheduleView';
-import SqlEditor from './components/SqlEditor';
 import AccessControlView from './components/AccessControlView';
 import SettingsView from './components/SettingsView';
 import McpConsole from './components/McpConsole';
@@ -26,13 +25,14 @@ import AttendanceDashboardView from './components/AttendanceDashboardView';
 import EnquiryCallView from './components/EnquiryCallView';
 import EnquiryCallLogView from './components/EnquiryCallLogView';
 import TaskManagementView from './components/TaskManagementView';
+import StudentsView from './components/StudentsView';
 import LoginView from './components/LoginView';
 import { View } from './types';
+import { BookOpen, CreditCard, Book, Activity } from 'lucide-react';
 import { ThemeProvider } from './context/ThemeContext';
 import { ClassProvider } from './context/ClassContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { FileText, CreditCard, Book, Activity } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { isLoading: authLoading, isAuthenticated } = useAuth();
@@ -92,8 +92,6 @@ const AppContent: React.FC = () => {
         return <TodayTaskView />;
       case View.MY_TASK:
         return <MyTaskView />;
-      case View.SQL_EDITOR:
-        return <SqlEditor />;
       case View.ACCESS_CONTROL:
         return <AccessControlView />;
       case View.SETTINGS:
@@ -122,14 +120,34 @@ const AppContent: React.FC = () => {
         return <EnquiryCallLogView />;
       case View.TASK_MANAGEMENT:
         return <TaskManagementView />;
-      case View.DOCUMENT:
+      case View.STUDENTS:
+        return <StudentsView />;
+      case View.REGISTRATION:
+      case View.ADMISSION:
+      case View.STUDENT_FEEDBACK:
+        return (
+          <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-supabase-bg">
+            <div className="w-20 h-20 bg-supabase-green/10 rounded-3xl flex items-center justify-center text-supabase-green mb-6 animate-pulse">
+              <BookOpen size={40} />
+            </div>
+            <h2 className="text-2xl font-black text-supabase-text uppercase tracking-widest mb-4">ACADEMIC: {currentView.replace('_', ' ')}</h2>
+            <p className="text-sm text-supabase-muted max-w-md leading-relaxed mb-8">
+              This module is currently being synchronized with the academic database. Please check back shortly for full access.
+            </p>
+            <button 
+              onClick={() => setCurrentView(View.DASHBOARD)}
+              className="bg-supabase-green text-black px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/20"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        );
       case View.BANKING:
       case View.LEDGER:
       case View.WORK_PROGRESS:
         return (
           <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-supabase-bg">
             <div className="w-20 h-20 bg-supabase-green/10 rounded-3xl flex items-center justify-center text-supabase-green mb-6 animate-bounce">
-              {currentView === View.DOCUMENT && <FileText size={40} />}
               {currentView === View.BANKING && <CreditCard size={40} />}
               {currentView === View.LEDGER && <Book size={40} />}
               {currentView === View.WORK_PROGRESS && <Activity size={40} />}

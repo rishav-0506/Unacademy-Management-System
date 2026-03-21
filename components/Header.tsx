@@ -42,12 +42,15 @@ const Header: React.FC<HeaderProps> = ({ currentView, onMenuToggle }) => {
       case View.TEACHERS: return 'Teachers List';
       case View.TEACHER_TASKS: return 'Teacher';
       case View.SETTINGS: return 'Settings';
-      case View.SQL_EDITOR: return 'SQL Editor';
       case View.MCP_CONSOLE: return 'MCP Interface';
       case View.ACCESS_CONTROL: return 'Access Control';
       case View.EMPLOYEES: return 'Employees';
       case View.ABSENT_CALL: return 'Absent Call';
       case View.STUDENT_ATTENDANCE: return 'Student Attendance';
+      case View.STUDENTS: return "Student's";
+      case View.REGISTRATION: return 'Registration';
+      case View.ADMISSION: return 'Admission';
+      case View.STUDENT_FEEDBACK: return "Student's Feedback";
       default: return 'Dashboard';
     }
   };

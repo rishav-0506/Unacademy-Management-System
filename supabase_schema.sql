@@ -1,65 +1,204 @@
+-- Supabase Database Schema for Unacademy Management System
 
--- 1. Student Attendance Matrix
-CREATE TABLE IF NOT EXISTS public.attendance_logs (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    student_id TEXT NOT NULL,
-    student_name TEXT NOT NULL,
-    class_name TEXT NOT NULL,
-    status TEXT CHECK (status IN ('present', 'absent', 'late')),
-    date DATE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-    UNIQUE(student_id, date)
-);
-
--- 2. Absentee Outreach Matrix
-CREATE TABLE IF NOT EXISTS public.outreach_logs (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    student_id TEXT NOT NULL,
-    date DATE NOT NULL,
-    outcome TEXT CHECK (outcome IN ('pending', 'called', 'no_answer', 'notified')),
-    note TEXT,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-    UNIQUE(student_id, date)
-);
-
--- 3. Enquiry Call System Table (Updated with history and alt phone)
-CREATE TABLE IF NOT EXISTS public.enquiry_leads (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    student_name TEXT NOT NULL,
-    parent_name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    alt_phone TEXT,
-    source TEXT CHECK (source IN ('Web', 'Referral', 'Walk-in', 'Social Media')),
-    temp TEXT CHECK (temp IN ('Hot', 'Warm', 'Cold')),
-    status TEXT CHECK (status IN ('Interested', 'Following-up', 'DNP', 'Closed', 'New')) DEFAULT 'New',
-    last_contact DATE,
-    note TEXT,
-    call_history JSONB DEFAULT '[]'::jsonb,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- 4. System Configuration Key-Value Store
-CREATE TABLE IF NOT EXISTS public.system_config (
+-- 1. System Configuration & Auth
+CREATE TABLE IF NOT EXISTS system_config (
     key TEXT PRIMARY KEY,
-    value JSONB,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+    value JSONB NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Enable RLS
-ALTER TABLE public.attendance_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.outreach_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.enquiry_leads ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.system_config ENABLE ROW LEVEL SECURITY;
+CREATE TABLE IF NOT EXISTS system_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'viewer',
+    mobile TEXT,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
--- Policies (Public for demo mode)
-CREATE POLICY "Allow select for everyone" ON public.attendance_logs FOR SELECT USING (true);
-CREATE POLICY "Allow upsert for everyone" ON public.attendance_logs FOR ALL USING (true) WITH CHECK (true);
+-- 2. Academic Structure
+CREATE TABLE IF NOT EXISTS classes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    section TEXT DEFAULT 'A',
+    room_no TEXT DEFAULT '0',
+    level INTEGER DEFAULT 0, -- 0: junior, 1: senior
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
-CREATE POLICY "Allow select outreach" ON public.outreach_logs FOR SELECT USING (true);
-CREATE POLICY "Allow upsert outreach" ON public.outreach_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE TABLE IF NOT EXISTS subjects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
-CREATE POLICY "Allow select enquiry" ON public.enquiry_leads FOR SELECT USING (true);
-CREATE POLICY "Allow upsert enquiry" ON public.enquiry_leads FOR ALL USING (true) WITH CHECK (true);
+CREATE TABLE IF NOT EXISTS teachers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    email TEXT UNIQUE,
+    phone TEXT,
+    subjects TEXT[], -- Array of subject names or IDs
+    profile_photo_url TEXT,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
-CREATE POLICY "Allow all access system_config" ON public.system_config FOR ALL USING (true) WITH CHECK (true);
+CREATE TABLE IF NOT EXISTS students (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name TEXT NOT NULL,
+    roll_number TEXT UNIQUE,
+    class_name TEXT REFERENCES classes(name),
+    guardian_name TEXT,
+    contact_number TEXT,
+    email TEXT,
+    address TEXT,
+    date_of_birth DATE,
+    gender TEXT,
+    status TEXT DEFAULT 'active',
+    profile_photo_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS weekly_schedules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    class TEXT REFERENCES classes(name),
+    schedule_id TEXT UNIQUE,
+    content JSONB NOT NULL, -- Array of ClassSession objects
+    status TEXT DEFAULT 'false', -- 'true' for published, 'false' for draft
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. Attendance & Outreach
+CREATE TABLE IF NOT EXISTS attendance_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id TEXT NOT NULL,
+    student_name TEXT,
+    class_name TEXT,
+    status TEXT DEFAULT 'present',
+    date DATE NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(student_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS outreach_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id TEXT NOT NULL,
+    student_name TEXT,
+    class_name TEXT,
+    guardian_name TEXT,
+    contact_number TEXT,
+    date DATE NOT NULL,
+    outcome TEXT,
+    note TEXT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS enquiry_leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_name TEXT NOT NULL,
+    parent_name TEXT,
+    phone TEXT NOT NULL,
+    email TEXT,
+    source TEXT,
+    status TEXT DEFAULT 'new',
+    call_history JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. Biometric System
+CREATE TABLE IF NOT EXISTS biometric_devices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    device_key TEXT UNIQUE NOT NULL,
+    ip_address TEXT,
+    port INTEGER DEFAULT 80,
+    status TEXT DEFAULT 'offline',
+    last_sync TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. Human Resources & Payroll
+CREATE TABLE IF NOT EXISTS employees (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    full_name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    mobile TEXT,
+    job_role TEXT,
+    department TEXT,
+    designation TEXT,
+    salary_grade_id TEXT,
+    base_salary NUMERIC DEFAULT 0,
+    allowances NUMERIC DEFAULT 0,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS personnel_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    description TEXT,
+    assigned_to TEXT, -- Employee ID or Name
+    due_date DATE,
+    priority TEXT DEFAULT 'medium',
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS payroll_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID REFERENCES employees(id),
+    month TEXT NOT NULL, -- e.g., '2024-03'
+    base_salary NUMERIC NOT NULL,
+    allowances NUMERIC DEFAULT 0,
+    deductions NUMERIC DEFAULT 0,
+    net_salary NUMERIC NOT NULL,
+    status TEXT DEFAULT 'pending',
+    paid_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS payroll_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tax_rate_percent NUMERIC DEFAULT 0,
+    provident_fund_percent NUMERIC DEFAULT 0,
+    insurance_flat_deduction NUMERIC DEFAULT 0,
+    currency TEXT DEFAULT 'USD',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Access Control Assignments
+CREATE TABLE IF NOT EXISTS user_assignments (
+    user_id UUID PRIMARY KEY REFERENCES system_users(id),
+    assigned_classes TEXT[], -- Array of class names
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Initial Data
+INSERT INTO system_users (full_name, email, password, role) 
+VALUES ('System Admin', 'dev@unacademy.system', '1234', 'superadmin')
+ON CONFLICT (email) DO NOTHING;
+
+INSERT INTO system_config (key, value) VALUES 
+('system_roles', '["superadmin", "administrator", "editor", "teacher", "viewer"]'),
+('system_departments', '["Academic", "Administration", "IT Support", "Human Resources"]'),
+('system_designations', '["Counselling", "Academic Works", "Director", "Teacher", "Faculty Coordinator", "Office Manager", "HR Lead", "Recruiter", "System Admin", "Support Tech"]'),
+('dept_designation_map', '{"Academic": ["Academic Works", "Teacher", "Faculty Coordinator"], "Administration": ["Director", "Counselling", "Office Manager"], "Human Resources": ["HR Lead", "Recruiter"], "IT Support": ["System Admin", "Support Tech"]}'),
+('permissions_matrix', '{
+  "VIEW_DASHBOARD": ["superadmin", "administrator", "admin", "editor", "teacher", "viewer"],
+  "VIEW_SCHEDULE_LIST": ["superadmin", "administrator", "admin", "editor"],
+  "VIEW_LIVE_SCHEDULE": ["superadmin", "administrator", "admin", "editor", "teacher", "viewer"],
+  "VIEW_CLASS_SCHEDULE": ["superadmin", "administrator", "admin", "editor"],
+  "VIEW_TEACHER_TASKS": ["superadmin", "administrator", "admin", "editor", "teacher"],
+  "VIEW_SETTINGS": ["superadmin", "administrator", "admin"],
+  "MANAGE_TEACHERS": ["superadmin", "administrator", "admin"],
+  "DELETE_SCHEDULE": ["superadmin", "administrator", "admin"],
+  "PUBLISH_SCHEDULE": ["superadmin", "administrator", "editor", "admin"],
+  "EDIT_SCHEDULE": ["superadmin", "administrator", "editor", "admin"],
+  "VIEW_REPORTS": ["superadmin", "administrator", "editor", "viewer", "admin", "teacher"],
+  "VIEW_ACADEMIC": ["superadmin", "administrator", "admin", "editor", "teacher", "viewer"],
+  "ACCESS_SQL_EDITOR": ["superadmin", "administrator", "admin"],
+  "MANAGE_ROLES": ["superadmin"]
+}')
+ON CONFLICT (key) DO NOTHING;

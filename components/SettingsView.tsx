@@ -1,45 +1,314 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+/* Added ChevronRight to imports */
 import { 
-  Shield, Trash2, ShieldPlus, Save, Loader2, Building2, Plus, Database, 
-  CloudCheck, Layout, Briefcase, Award, Link2, Check, ChevronRight, 
-  Palette, Globe, MapPin, Mail, Phone, Image as ImageIcon, Sparkles, Upload, X
+  Shield, Trash2, ShieldPlus, Save, Loader2, Building2, Plus, 
+  Database, CloudCheck, Layout, Briefcase, Award, Link2, Check, Search, Upload, Clock,
+  ChevronRight, Fingerprint, Cpu, UploadCloud, DownloadCloud, Activity, 
+  RefreshCw, Server, Wifi, WifiOff, X, UserCheck
 } from 'lucide-react';
-import { useAuth, BrandingConfig } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../services/supabaseClient';
+import { biometricService } from '../services/biometricService';
+
+interface BiometricDevice {
+  id: string;
+  name: string;
+  cloud_key: string | null;
+  serial_number: string;
+  location: string;
+  status: 'Online' | 'Offline' | 'Connecting';
+  last_sync: string | null;
+}
 
 const SettingsView: React.FC = () => {
   const { 
     availableRoles, deleteRole, addRole, 
     departments, addDepartment, deleteDepartment, 
     designations, addDesignation, deleteDesignation,
-    departmentDesignationMap, updateDeptMap, saveSystemConfig,
-    branding: globalBranding, updateBranding
+    departmentDesignationMap, updateDeptMap, saveSystemConfig
   } = useAuth();
   const { showToast } = useToast();
   
-  const [activeTab, setActiveTab] = useState<'roles' | 'departments' | 'designations' | 'mappings' | 'branding'>('roles');
+  const [activeTab, setActiveTab] = useState<'roles' | 'departments' | 'designations' | 'mappings' | 'biometric'>('roles');
   const [newRole, setNewRole] = useState('');
   const [newDept, setNewDept] = useState('');
   const [newDesig, setNewDesig] = useState('');
   
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [uploadingField, setUploadingField] = useState<'logoUrl' | 'iconUrl' | null>(null);
   const [selectedMappingDept, setSelectedMappingDept] = useState<string | null>(null);
 
-  // File Input Refs
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const iconInputRef = useRef<HTMLInputElement>(null);
+  // Biometric State
+  const [devices, setDevices] = useState<BiometricDevice[]>([]);
+  const [isFetchingDevices, setIsFetchingDevices] = useState(false);
+  const [isAddingDevice, setIsAddingDevice] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [isSyncing, setIsSyncing] = useState<string | null>(null); // deviceId_type
+  const [fetchedUsers, setFetchedUsers] = useState<any[]>([]);
+  const [showUsersModal, setShowUsersModal] = useState(false);
+  const [selectedDeviceName, setSelectedDeviceName] = useState('');
+  const [selectedDeviceId, setSelectedDeviceId] = useState('');
+  const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<{ id: string, name: string } | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [dbStudents, setDbStudents] = useState<any[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+  const [isUploadingSelected, setIsUploadingSelected] = useState(false);
+  const [uploadSearchTerm, setUploadSearchTerm] = useState('');
+  const [uploadProgress, setUploadProgress] = useState<{ current: number, total: number, currentName: string } | null>(null);
+  const [showCommandsModal, setShowCommandsModal] = useState(false);
+  const [fetchedCommands, setFetchedCommands] = useState<any[]>([]);
+  const [isFetchingCommands, setIsFetchingCommands] = useState(false);
 
-  // Branding State - Initialized from global context
-  const [branding, setBranding] = useState<BrandingConfig>(globalBranding);
+  const [cloudConfig, setCloudConfig] = useState({
+    baseUrl: '',
+    username: '',
+    password: ''
+  });
+  const [newDevice, setNewDevice] = useState({
+    name: '',
+    cloud_key: '',
+    location: ''
+  });
 
-  // Sync local state when global context updates (e.g. initial load)
   useEffect(() => {
-    setBranding(globalBranding);
-  }, [globalBranding]);
+    if (activeTab === 'biometric') {
+      fetchDevices();
+      fetchCloudConfig();
+    }
+  }, [activeTab]);
+
+  const fetchCloudConfig = async () => {
+    if (!supabase) return;
+    try {
+      const { data } = await supabase.from('system_config').select('value').eq('key', 'biometric_api_config').maybeSingle();
+      if (data?.value) {
+        setCloudConfig(data.value as any);
+      }
+    } catch (e) {
+      console.error("Failed to fetch cloud config:", e);
+    }
+  };
+
+  const saveCloudConfig = async () => {
+    if (!supabase) return;
+    setIsSavingConfig(true);
+    try {
+      const { error } = await supabase.from('system_config').upsert({
+        key: 'biometric_api_config',
+        value: cloudConfig
+      }, { onConflict: 'key' });
+      if (error) throw error;
+      await biometricService.initialize();
+      showToast("Cloud API configuration saved", "success");
+    } catch (e: any) {
+      showToast("Failed to save config: " + e.message, "error");
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  const fetchDevices = async () => {
+    if (!supabase) return;
+    setIsFetchingDevices(true);
+    try {
+      const { data, error } = await supabase.from('biometric_devices').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      setDevices(data || []);
+    } catch (e: any) {
+      showToast("Failed to fetch devices: " + e.message, "error");
+    } finally {
+      setIsFetchingDevices(false);
+    }
+  };
+
+  const handleAddDevice = async () => {
+    if (!newDevice.name || !newDevice.cloud_key || !supabase) {
+      showToast("Name and Cloud Key are required", "error");
+      return;
+    }
+    setIsAddingDevice(true);
+    try {
+      const { data, error } = await supabase.from('biometric_devices').insert([
+        { ...newDevice, status: 'Offline' }
+      ]).select();
+      if (error) throw error;
+      setDevices([data[0], ...devices]);
+      setNewDevice({ name: '', cloud_key: '', location: '' });
+      showToast("Device added successfully", "success");
+    } catch (e: any) {
+      showToast("Failed to add device: " + e.message, "error");
+    } finally {
+      setIsAddingDevice(false);
+    }
+  };
+
+  const deleteDevice = async (id: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.from('biometric_devices').delete().eq('id', id);
+      if (error) throw error;
+      setDevices(devices.filter(d => d.id !== id));
+      showToast("Device removed", "success");
+    } catch (e: any) {
+      showToast("Failed to remove device: " + e.message, "error");
+    }
+  };
+
+  const testConnection = async (id: string) => {
+    const device = devices.find(d => d.id === id);
+    if (!device || !device.cloud_key) return;
+
+    setDevices(devices.map(d => d.id === id ? { ...d, status: 'Connecting' } : d));
+    
+    try {
+      const isOnline = await biometricService.testConnection(device.cloud_key);
+      const newStatus = isOnline ? 'Online' : 'Offline';
+      if (supabase) {
+        await supabase.from('biometric_devices').update({ status: newStatus }).eq('id', id);
+      }
+      setDevices(devices.map(d => d.id === id ? { ...d, status: newStatus } : d));
+      showToast(isOnline ? "Device is Online" : "Connection failed", isOnline ? "success" : "error");
+    } catch (e: any) {
+      showToast("Connection test failed: " + e.message, "error");
+      setDevices(devices.map(d => d.id === id ? { ...d, status: 'Offline' } : d));
+    }
+  };
+
+  const syncData = async (id: string, type: 'upload' | 'logs' | 'users' | 'commands') => {
+    const device = devices.find(d => d.id === id);
+    if (!device || !device.cloud_key) return;
+
+    const syncKey = `${id}_${type}`;
+    setIsSyncing(syncKey);
+    
+    try {
+      if (type === 'logs') {
+        const logs = await biometricService.fetchLogs(device.cloud_key);
+        await biometricService.syncLogsToSupabase(logs);
+        showToast(`Fetched ${logs.length} logs and synced to attendance`, "success");
+      } else if (type === 'users') {
+        const users = await biometricService.fetchUsersFromDevice(device.cloud_key);
+        setFetchedUsers(users);
+        setSelectedDeviceName(device.name);
+        setSelectedDeviceId(device.id);
+        setShowUsersModal(true);
+        showToast(`Found ${users.length} users on device`, "success");
+      } else if (type === 'commands') {
+        setIsFetchingCommands(true);
+        const commands = await biometricService.fetchCommands(device.cloud_key);
+        setFetchedCommands(commands);
+        setSelectedDeviceName(device.name);
+        setSelectedDeviceId(device.id);
+        setShowCommandsModal(true);
+        showToast(`Retrieved ${commands.length} command statuses`, "success");
+      } else {
+        if (!supabase) return;
+        // Fetch students from the 'students' table to show in the selection modal
+        const { data: students, error: studentError } = await supabase.from('students').select('*').order('full_name');
+        if (studentError) throw studentError;
+        
+        if (students && students.length > 0) {
+          setDbStudents(students);
+          setSelectedStudentIds(new Set());
+          setSelectedDeviceName(device.name);
+          setSelectedDeviceId(device.id);
+          setShowUploadModal(true);
+        } else {
+          showToast("No students found in database", "info");
+        }
+      }
+
+      const now = new Date().toISOString();
+      if (supabase) {
+        await supabase.from('biometric_devices').update({ last_sync: now }).eq('id', id);
+      }
+      setDevices(devices.map(d => d.id === id ? { ...d, last_sync: now } : d));
+    } catch (e: any) {
+      showToast("Sync failed: " + e.message, "error");
+    } finally {
+      setIsSyncing(null);
+    }
+  };
+
+  const handleUploadSelected = async () => {
+    const device = devices.find(d => d.id === selectedDeviceId);
+    if (!device || !device.cloud_key || selectedStudentIds.size === 0) return;
+
+    setIsUploadingSelected(true);
+    let successCount = 0;
+    const studentsToUpload = dbStudents.filter(s => selectedStudentIds.has(s.id));
+    setUploadProgress({ current: 0, total: studentsToUpload.length, currentName: '' });
+    
+    try {
+      for (let i = 0; i < studentsToUpload.length; i++) {
+        const student = studentsToUpload[i];
+        setUploadProgress({ current: i + 1, total: studentsToUpload.length, currentName: student.full_name });
+        try {
+          await biometricService.uploadUser({
+            userId: student.roll_number || student.id,
+            userName: student.full_name,
+            cardNumber: "",
+            accessLevel: "User",
+            password: "" 
+          }, device.cloud_key);
+          successCount++;
+        } catch (err) {
+          console.error(`Failed to upload ${student.full_name}:`, err);
+        }
+      }
+      
+      showToast(`Successfully uploaded ${successCount} of ${studentsToUpload.length} students`, "success");
+      setShowUploadModal(false);
+    } catch (e: any) {
+      showToast("Upload failed: " + e.message, "error");
+    } finally {
+      setIsUploadingSelected(false);
+      setUploadProgress(null);
+    }
+  };
+
+  const toggleStudentSelection = (id: string) => {
+    const newSelected = new Set(selectedStudentIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedStudentIds(newSelected);
+  };
+
+  const toggleAllStudents = () => {
+    if (selectedStudentIds.size === filteredDbStudents.length) {
+      setSelectedStudentIds(new Set());
+    } else {
+      setSelectedStudentIds(new Set(filteredDbStudents.map(s => s.id)));
+    }
+  };
+
+  const filteredDbStudents = dbStudents.filter(s => 
+    s.full_name.toLowerCase().includes(uploadSearchTerm.toLowerCase()) ||
+    (s.roll_number && s.roll_number.toLowerCase().includes(uploadSearchTerm.toLowerCase()))
+  );
+
+  const handleDeleteUserFromDevice = async (userId: string) => {
+    const device = devices.find(d => d.id === selectedDeviceId);
+    if (!device || !device.cloud_key) return;
+
+    setIsDeletingUser(userId);
+    try {
+      await biometricService.deleteUserFromDevice(userId, device.cloud_key);
+      setFetchedUsers(fetchedUsers.filter(u => (u.UserId || u.userId) !== userId));
+      showToast("User deleted from device", "success");
+      setUserToDelete(null);
+    } catch (e: any) {
+      showToast("Failed to delete user: " + e.message, "error");
+    } finally {
+      setIsDeletingUser(null);
+    }
+  };
 
   const handleAddRole = async () => {
     if (!newRole.trim()) return;
@@ -72,55 +341,11 @@ const SettingsView: React.FC = () => {
     setIsSaving(true);
     try {
       await saveSystemConfig();
-      await updateBranding(branding);
-      showToast("Infrastructure & Branding state persisted to database", "success");
+      showToast("Infrastructure state persisted to database", "success");
     } catch (e: any) {
       showToast("Sync failed: " + e.message, "error");
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'logoUrl' | 'iconUrl') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!supabase) {
-        showToast("Storage unavailable in demo mode.", "error");
-        return;
-    }
-
-    setUploadingField(field);
-    try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${field}_${Date.now()}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        // Upload to 'branding-assets' bucket
-        const { error: uploadError } = await supabase.storage
-            .from('branding-assets')
-            .upload(filePath, file);
-
-        if (uploadError) {
-            // Check if bucket exists error, if so, just warn
-            if (uploadError.message.includes('bucket not found')) {
-                 throw new Error("Bucket 'branding-assets' not found. Please create it in Supabase Storage.");
-            }
-            throw uploadError;
-        }
-
-        const { data } = supabase.storage
-            .from('branding-assets')
-            .getPublicUrl(filePath);
-
-        setBranding(prev => ({ ...prev, [field]: data.publicUrl }));
-        showToast("Asset uploaded successfully.", "success");
-    } catch (error: any) {
-        showToast(`Upload failed: ${error.message}`, "error");
-    } finally {
-        setUploadingField(null);
-        // Reset input
-        if (e.target) e.target.value = '';
     }
   };
 
@@ -164,7 +389,7 @@ const SettingsView: React.FC = () => {
           { id: 'departments', icon: Building2, label: 'Departments' },
           { id: 'designations', icon: Briefcase, label: 'Designations' },
           { id: 'mappings', icon: Link2, label: 'Relationship Mapping' },
-          { id: 'branding', icon: Palette, label: 'Branding & Identity' }
+          { id: 'biometric', icon: Fingerprint, label: 'Biometric System' }
         ].map(tab => (
           <button 
             key={tab.id}
@@ -295,197 +520,242 @@ const SettingsView: React.FC = () => {
           </div>
         )}
 
-        {activeTab === 'branding' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in zoom-in-95 duration-300">
-            {/* Identity & Visuals */}
-            <div className="space-y-6">
-              <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 shadow-sm">
-                <h3 className="text-[10px] font-black uppercase text-supabase-muted tracking-[0.2em] mb-6 flex items-center gap-2">
-                  <Globe size={14} className="text-supabase-green" /> Corporate Identity
-                </h3>
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-supabase-muted uppercase">Organization Name</label>
-                    <input 
-                      type="text" 
-                      value={branding.orgName} 
-                      onChange={e => setBranding({...branding, orgName: e.target.value})} 
-                      className="w-full bg-supabase-sidebar border border-supabase-border rounded-xl px-4 py-3 text-sm text-supabase-text focus:border-supabase-green outline-none" 
-                      placeholder="e.g. Unacademy Systems"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-supabase-muted uppercase">Primary Unit / Currency</label>
-                    <input 
-                      type="text" 
-                      value={branding.unit} 
-                      onChange={e => setBranding({...branding, unit: e.target.value})} 
-                      className="w-full bg-supabase-sidebar border border-supabase-border rounded-xl px-4 py-3 text-sm text-supabase-text focus:border-supabase-green outline-none" 
-                      placeholder="e.g. USD, EUR, INR"
-                    />
+        {activeTab === 'biometric' && (
+          <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="md:col-span-1 space-y-6">
+                <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text flex items-center gap-2">
+                    <Plus size={14} className="text-supabase-green" />
+                    Register New Device
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Device Name</label>
+                      <input 
+                        type="text" 
+                        value={newDevice.name} 
+                        onChange={e => setNewDevice({...newDevice, name: e.target.value})} 
+                        placeholder="e.g. Main Entrance" 
+                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Cloud Access Key</label>
+                      <div className="relative">
+                        <input 
+                          type="password" 
+                          value={newDevice.cloud_key} 
+                          onChange={e => setNewDevice({...newDevice, cloud_key: e.target.value})} 
+                          placeholder="Enter Cloud API Key..." 
+                          className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green pr-10" 
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-supabase-muted">
+                          <Shield size={14} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Location</label>
+                      <input 
+                        type="text" 
+                        value={newDevice.location} 
+                        onChange={e => setNewDevice({...newDevice, location: e.target.value})} 
+                        placeholder="Ground Floor" 
+                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
+                      />
+                    </div>
+                    <button 
+                      onClick={handleAddDevice}
+                      disabled={isAddingDevice}
+                      className="w-full py-2.5 bg-supabase-green text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all flex items-center justify-center gap-2"
+                    >
+                      {isAddingDevice ? <Loader2 size={14} className="animate-spin" /> : <Server size={14} />}
+                      Register Device
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 shadow-sm">
-                <h3 className="text-[10px] font-black uppercase text-supabase-muted tracking-[0.2em] mb-6 flex items-center gap-2">
-                  <Palette size={14} className="text-purple-400" /> Visual Assets
-                </h3>
-                <div className="space-y-6">
-                  {/* Logo Upload */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-supabase-muted uppercase">Organization Logo</label>
-                    <div className="flex gap-4">
-                        <div 
-                            onClick={() => logoInputRef.current?.click()}
-                            className="w-24 h-24 rounded-2xl bg-supabase-sidebar border-2 border-dashed border-supabase-border flex items-center justify-center cursor-pointer hover:border-supabase-green hover:bg-supabase-green/5 transition-all relative group overflow-hidden"
-                        >
-                            {branding.logoUrl ? (
-                                <>
-                                    <img src={branding.logoUrl} alt="Logo" className="w-full h-full object-contain p-2" />
-                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Upload size={20} className="text-white" />
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex flex-col items-center gap-2 text-supabase-muted group-hover:text-supabase-green">
-                                    <ImageIcon size={24} />
-                                    <span className="text-[8px] font-black uppercase">Upload</span>
-                                </div>
-                            )}
-                            {uploadingField === 'logoUrl' && (
-                                <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
-                                    <Loader2 size={24} className="text-supabase-green animate-spin" />
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex-1 flex flex-col justify-center space-y-2">
-                            <input 
-                                type="file" 
-                                ref={logoInputRef} 
-                                className="hidden" 
-                                accept="image/*"
-                                onChange={(e) => handleFileUpload(e, 'logoUrl')} 
-                            />
-                            <div className="flex items-center gap-2">
-                                <input 
-                                    type="text" 
-                                    value={branding.logoUrl} 
-                                    onChange={e => setBranding({...branding, logoUrl: e.target.value})} 
-                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-[10px] text-supabase-muted focus:border-supabase-green outline-none font-mono" 
-                                    placeholder="https://... or upload"
-                                />
-                                {branding.logoUrl && (
-                                    <button 
-                                        onClick={() => setBranding(prev => ({...prev, logoUrl: ''}))}
-                                        className="p-2 text-supabase-muted hover:text-red-400 bg-supabase-sidebar border border-supabase-border rounded-lg"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                )}
-                            </div>
-                            <p className="text-[9px] text-supabase-muted">Recommended: 200x200px PNG transparent.</p>
-                        </div>
+                <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text flex items-center gap-2">
+                    <CloudCheck size={14} className="text-supabase-green" />
+                    Cloud API Config
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Base URL</label>
+                      <input 
+                        type="text" 
+                        value={cloudConfig.baseUrl} 
+                        onChange={e => setCloudConfig({...cloudConfig, baseUrl: e.target.value})} 
+                        placeholder="http://192.168.1.251:94" 
+                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
+                      />
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Username</label>
+                      <input 
+                        type="text" 
+                        value={cloudConfig.username} 
+                        onChange={e => setCloudConfig({...cloudConfig, username: e.target.value})} 
+                        placeholder="biomax" 
+                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Password</label>
+                      <input 
+                        type="password" 
+                        value={cloudConfig.password} 
+                        onChange={e => setCloudConfig({...cloudConfig, password: e.target.value})} 
+                        placeholder="••••••••" 
+                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
+                      />
+                    </div>
+                    <button 
+                      onClick={saveCloudConfig}
+                      disabled={isSavingConfig}
+                      className="w-full py-2.5 bg-supabase-sidebar border border-supabase-border text-supabase-text rounded-lg text-[10px] font-black uppercase tracking-widest hover:border-supabase-green transition-all flex items-center justify-center gap-2"
+                    >
+                      {isSavingConfig ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      Save Config
+                    </button>
                   </div>
+                </div>
 
-                  {/* Icon Upload */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-supabase-muted uppercase">Favicon / App Icon</label>
-                    <div className="flex gap-4">
-                        <div 
-                            onClick={() => iconInputRef.current?.click()}
-                            className="w-16 h-16 rounded-xl bg-supabase-sidebar border-2 border-dashed border-supabase-border flex items-center justify-center cursor-pointer hover:border-supabase-green hover:bg-supabase-green/5 transition-all relative group overflow-hidden"
-                        >
-                            {branding.iconUrl ? (
-                                <>
-                                    <img src={branding.iconUrl} alt="Icon" className="w-full h-full object-contain p-1" />
-                                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <Upload size={16} className="text-white" />
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex flex-col items-center gap-1 text-supabase-muted group-hover:text-supabase-green">
-                                    <Sparkles size={18} />
-                                </div>
-                            )}
-                            {uploadingField === 'iconUrl' && (
-                                <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
-                                    <Loader2 size={18} className="text-supabase-green animate-spin" />
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex-1 flex flex-col justify-center space-y-2">
-                            <input 
-                                type="file" 
-                                ref={iconInputRef} 
-                                className="hidden" 
-                                accept="image/*"
-                                onChange={(e) => handleFileUpload(e, 'iconUrl')} 
-                            />
-                            <div className="flex items-center gap-2">
-                                <input 
-                                    type="text" 
-                                    value={branding.iconUrl} 
-                                    onChange={e => setBranding({...branding, iconUrl: e.target.value})} 
-                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-[10px] text-supabase-muted focus:border-supabase-green outline-none font-mono" 
-                                    placeholder="https://... or upload"
-                                />
-                                {branding.iconUrl && (
-                                    <button 
-                                        onClick={() => setBranding(prev => ({...prev, iconUrl: ''}))}
-                                        className="p-2 text-supabase-muted hover:text-red-400 bg-supabase-sidebar border border-supabase-border rounded-lg"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                )}
-                            </div>
-                            <p className="text-[9px] text-supabase-muted">Recommended: 32x32px or 64x64px ICO/PNG.</p>
-                        </div>
+                <div className="bg-supabase-panel border border-supabase-border border-dashed rounded-2xl p-6">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-supabase-muted mb-3 flex items-center gap-2">
+                    <Activity size={12} /> System Status
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-supabase-muted">Active Devices</span>
+                      <span className="text-[11px] font-bold text-supabase-text">{devices.filter(d => d.status === 'Online').length}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-supabase-muted">Total Users Synced</span>
+                      <span className="text-[11px] font-bold text-supabase-text">1,240</span>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Contact Info */}
-            <div className="space-y-6">
-              <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 shadow-sm h-full flex flex-col">
-                <h3 className="text-[10px] font-black uppercase text-supabase-muted tracking-[0.2em] mb-6 flex items-center gap-2">
-                  <MapPin size={14} className="text-blue-400" /> Operational Contact
-                </h3>
-                <div className="space-y-6 flex-1">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-supabase-muted uppercase flex items-center gap-2"><Mail size={12} /> Official Email</label>
-                    <input 
-                      type="email" 
-                      value={branding.contactEmail} 
-                      onChange={e => setBranding({...branding, contactEmail: e.target.value})} 
-                      className="w-full bg-supabase-sidebar border border-supabase-border rounded-xl px-4 py-3 text-sm text-supabase-text focus:border-supabase-green outline-none" 
-                      placeholder="admin@organization.com"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-supabase-muted uppercase flex items-center gap-2"><Phone size={12} /> Support Phone</label>
-                    <input 
-                      type="text" 
-                      value={branding.contactPhone} 
-                      onChange={e => setBranding({...branding, contactPhone: e.target.value})} 
-                      className="w-full bg-supabase-sidebar border border-supabase-border rounded-xl px-4 py-3 text-sm text-supabase-text focus:border-supabase-green outline-none" 
-                      placeholder="+1 (555) 000-0000"
-                    />
-                  </div>
-                  <div className="space-y-1.5 flex-1 flex flex-col">
-                    <label className="text-[10px] font-bold text-supabase-muted uppercase">Physical Address</label>
-                    <textarea 
-                      rows={5}
-                      value={branding.address} 
-                      onChange={e => setBranding({...branding, address: e.target.value})} 
-                      className="w-full bg-supabase-sidebar border border-supabase-border rounded-xl px-4 py-3 text-sm text-supabase-text focus:border-supabase-green outline-none resize-none flex-1" 
-                      placeholder="Headquarters address..."
-                    />
-                  </div>
+              <div className="md:col-span-2 space-y-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text">Managed Devices</h3>
+                  <button onClick={fetchDevices} className="p-1.5 text-supabase-muted hover:text-supabase-green transition-colors">
+                    <RefreshCw size={14} className={isFetchingDevices ? 'animate-spin' : ''} />
+                  </button>
                 </div>
+
+                {isFetchingDevices ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-supabase-muted opacity-30 gap-3">
+                    <Loader2 size={32} className="animate-spin" />
+                    <p className="text-[10px] font-black uppercase tracking-widest">Scanning Network...</p>
+                  </div>
+                ) : devices.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-supabase-muted border border-supabase-border border-dashed rounded-2xl opacity-30 gap-3">
+                    <Cpu size={48} />
+                    <p className="text-[10px] font-black uppercase tracking-widest">No devices registered</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {devices.map(device => (
+                      <div key={device.id} className="bg-supabase-panel border border-supabase-border rounded-2xl p-5 group hover:border-supabase-green/30 transition-all">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all ${
+                              device.status === 'Online' ? 'bg-supabase-green/10 border-supabase-green/20 text-supabase-green' : 
+                              device.status === 'Connecting' ? 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500' :
+                              'bg-red-500/10 border-red-500/20 text-red-500'
+                            }`}>
+                              {device.status === 'Online' ? <Wifi size={24} /> : device.status === 'Connecting' ? <Loader2 size={24} className="animate-spin" /> : <WifiOff size={24} />}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-black text-supabase-text uppercase tracking-tight">{device.name}</h4>
+                                <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black uppercase tracking-widest ${
+                                  device.status === 'Online' ? 'bg-supabase-green/10 text-supabase-green' : 
+                                  device.status === 'Connecting' ? 'bg-yellow-500/10 text-yellow-500' :
+                                  'bg-red-500/10 text-red-500'
+                                }`}>
+                                  {device.status}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-supabase-muted font-mono">
+                                {device.location}
+                                {device.cloud_key && (
+                                  <span className="ml-2 px-1.5 py-0.5 bg-supabase-sidebar border border-supabase-border rounded text-[8px] text-supabase-green">
+                                    Cloud Enabled
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => testConnection(device.id)}
+                              className="p-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green hover:border-supabase-green transition-all"
+                              title="Test Connection"
+                            >
+                              <RefreshCw size={14} className={device.status === 'Connecting' ? 'animate-spin' : ''} />
+                            </button>
+                            <button 
+                              onClick={() => syncData(device.id, 'upload')}
+                              disabled={isSyncing === `${device.id}_upload`}
+                              className="flex items-center gap-2 px-3 py-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-[9px] font-black uppercase tracking-widest text-supabase-muted hover:text-supabase-green hover:border-supabase-green transition-all disabled:opacity-50"
+                              title="Upload all system users to device"
+                            >
+                              {isSyncing === `${device.id}_upload` ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                              <span className="hidden sm:inline">Upload</span>
+                            </button>
+                            <button 
+                              onClick={() => syncData(device.id, 'logs')}
+                              disabled={isSyncing === `${device.id}_logs`}
+                              className="flex items-center gap-2 px-3 py-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-[9px] font-black uppercase tracking-widest text-supabase-muted hover:text-supabase-green hover:border-supabase-green transition-all disabled:opacity-50"
+                              title="Fetch attendance logs from device"
+                            >
+                              {isSyncing === `${device.id}_logs` ? <Loader2 size={14} className="animate-spin" /> : <Activity size={14} />}
+                              <span className="hidden sm:inline">Logs</span>
+                            </button>
+                            <button 
+                              onClick={() => syncData(device.id, 'commands')}
+                              disabled={isSyncing === `${device.id}_commands`}
+                              className="flex items-center gap-2 px-3 py-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-[9px] font-black uppercase tracking-widest text-supabase-muted hover:text-supabase-green hover:border-supabase-green transition-all disabled:opacity-50"
+                              title="View command queue status"
+                            >
+                              {isSyncing === `${device.id}_commands` ? <Loader2 size={14} className="animate-spin" /> : <Activity size={14} />}
+                              <span className="hidden sm:inline">Queue</span>
+                            </button>
+                            <button 
+                              onClick={() => syncData(device.id, 'users')}
+                              disabled={isSyncing === `${device.id}_users`}
+                              className="flex items-center gap-2 px-3 py-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-[9px] font-black uppercase tracking-widest text-supabase-muted hover:text-supabase-green hover:border-supabase-green transition-all disabled:opacity-50"
+                              title="View users registered on device"
+                            >
+                              {isSyncing === `${device.id}_users` ? <Loader2 size={14} className="animate-spin" /> : <UserCheck size={14} />}
+                              <span className="hidden sm:inline">Users</span>
+                            </button>
+                            <button 
+                              onClick={() => deleteDevice(device.id)}
+                              className="p-2 text-supabase-muted hover:text-red-400 transition-colors"
+                              title="Remove Device"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                        {device.last_sync && (
+                          <div className="mt-4 pt-4 border-t border-supabase-border flex items-center gap-2 text-[9px] text-supabase-muted uppercase tracking-widest">
+                            <Activity size={10} />
+                            Last Sync: {new Date(device.last_sync).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -503,6 +773,349 @@ const SettingsView: React.FC = () => {
             </p>
         </div>
       </div>
+
+      {/* Users Modal */}
+      {showUsersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-supabase-panel border border-supabase-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-supabase-border flex items-center justify-between bg-supabase-sidebar sticky top-0 z-10">
+              <div>
+                <h3 className="text-sm font-black text-supabase-text uppercase tracking-widest">Users on {selectedDeviceName}</h3>
+                <p className="text-[10px] text-supabase-muted font-black uppercase tracking-widest mt-1">Found {fetchedUsers.length} registered users</p>
+              </div>
+              <button 
+                onClick={() => setShowUsersModal(false)}
+                className="p-2 text-supabase-muted hover:text-supabase-text hover:bg-supabase-sidebar rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+              {fetchedUsers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-supabase-muted opacity-30 gap-3">
+                  <Fingerprint size={48} />
+                  <p className="text-[10px] font-black uppercase tracking-widest">No users found on this device</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {fetchedUsers.map((user, idx) => (
+                    <div key={idx} className="p-4 rounded-xl border border-supabase-border bg-supabase-sidebar flex flex-col gap-3 group hover:border-supabase-green/30 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-lg bg-supabase-green/10 flex items-center justify-center text-supabase-green font-black text-xs shrink-0">
+                          {(user.UserName || user.userName || user.UserId || user.userId || '?').charAt(0)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-black text-supabase-text uppercase tracking-tight truncate">{user.UserName || user.userName || 'Unknown'}</p>
+                            <div 
+                              className={`w-2 h-2 rounded-full ${user.IsActive ? 'bg-supabase-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500'}`} 
+                              title={user.IsActive ? 'Active' : 'Inactive'} 
+                            />
+                          </div>
+                          <p className="text-[10px] text-supabase-muted font-mono">ID: {user.UserId || user.userId}</p>
+                        </div>
+                        <button
+                          onClick={() => setUserToDelete({ id: user.UserId || user.userId, name: user.UserName || user.userName || 'Unknown' })}
+                          disabled={isDeletingUser === (user.UserId || user.userId)}
+                          className="p-2 text-supabase-muted hover:text-red-400 transition-colors disabled:opacity-50"
+                          title="Delete User from Device"
+                        >
+                          {isDeletingUser === (user.UserId || user.userId) ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
+                        </button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-y-2 gap-x-4 pt-3 border-t border-supabase-border/30">
+                        <div className="flex items-center gap-1.5 text-[9px] text-supabase-muted uppercase tracking-widest">
+                          <Shield size={10} className="text-supabase-green" />
+                          <span className="truncate">{user.Privilege || 'USER'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[9px] text-supabase-muted uppercase tracking-widest">
+                          <Fingerprint size={10} className="text-supabase-green" />
+                          <span>FP: {user.FPCount || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[9px] text-supabase-muted uppercase tracking-widest">
+                          <UserCheck size={10} className="text-supabase-green" />
+                          <span>FACE: {user.FaceCount || 0}</span>
+                        </div>
+                        {(user.CardNumber || user.cardNumber) && (
+                          <div className="flex items-center gap-1.5 text-[9px] text-supabase-green uppercase tracking-widest font-mono">
+                            <Link2 size={10} />
+                            <span className="truncate">{user.CardNumber || user.cardNumber}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-supabase-border bg-supabase-sidebar flex justify-end">
+              <button
+                onClick={() => setShowUsersModal(false)}
+                className="px-6 py-2 bg-supabase-panel border border-supabase-border text-supabase-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-supabase-green transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-supabase-panel border border-supabase-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mx-auto mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-sm font-black text-supabase-text uppercase tracking-widest">Confirm Deletion</h3>
+              <p className="text-xs text-supabase-muted">
+                Are you sure you want to delete user <strong>{userToDelete.name}</strong> (ID: {userToDelete.id}) from this device? This action cannot be undone.
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setUserToDelete(null)}
+                className="flex-1 px-4 py-2 bg-supabase-sidebar border border-supabase-border text-supabase-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-supabase-green transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteUserFromDevice(userToDelete.id)}
+                disabled={isDeletingUser === userToDelete.id}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingUser === userToDelete.id ? <Loader2 size={12} className="animate-spin" /> : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Command Queue Modal */}
+      {showCommandsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-supabase-panel border border-supabase-border rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-supabase-border flex items-center justify-between bg-supabase-sidebar sticky top-0 z-10">
+              <div>
+                <h3 className="text-sm font-black text-supabase-text uppercase tracking-widest">Command Queue: {selectedDeviceName}</h3>
+                <p className="text-[10px] text-supabase-muted font-black uppercase tracking-widest mt-1">Live status of device operations</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => syncData(selectedDeviceId, 'commands')}
+                  className="p-2 text-supabase-muted hover:text-supabase-green transition-colors"
+                  title="Refresh"
+                >
+                  <RefreshCw size={18} className={isFetchingCommands ? 'animate-spin' : ''} />
+                </button>
+                <button 
+                  onClick={() => setShowCommandsModal(false)}
+                  className="p-2 text-supabase-muted hover:text-supabase-text hover:bg-supabase-sidebar rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-3">
+                {fetchedCommands.length > 0 ? (
+                  fetchedCommands.map((cmd, idx) => (
+                    <div key={idx} className="p-4 bg-supabase-sidebar border border-supabase-border rounded-xl flex items-center justify-between group hover:border-supabase-green/30 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          cmd.Status === 'Success' ? 'bg-supabase-green/10 text-supabase-green' :
+                          cmd.Status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500' :
+                          'bg-red-500/10 text-red-500'
+                        }`}>
+                          {cmd.Status === 'Success' ? <Check size={16} /> : 
+                           cmd.Status === 'Pending' ? <Clock size={16} /> : 
+                           <X size={16} />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-black text-supabase-text uppercase tracking-tight">{cmd.CommandType || 'Unknown Command'}</p>
+                          <p className="text-[10px] text-supabase-muted font-mono">ID: {cmd.Id || 'N/A'} • {cmd.CreateTime || 'No date'}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                          cmd.Status === 'Success' ? 'bg-supabase-green/20 text-supabase-green border border-supabase-green/30' :
+                          cmd.Status === 'Pending' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
+                          'bg-red-500/20 text-red-500 border border-red-500/30'
+                        }`}>
+                          {cmd.Status || 'Unknown'}
+                        </span>
+                        {cmd.ResponseTime && (
+                          <p className="text-[9px] text-supabase-muted mt-1 font-mono">Processed: {cmd.ResponseTime}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20 text-supabase-muted opacity-30 gap-3">
+                    <Activity size={48} />
+                    <p className="text-[10px] font-black uppercase tracking-widest">No commands in queue</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-supabase-border bg-supabase-sidebar flex justify-end">
+              <button
+                onClick={() => setShowCommandsModal(false)}
+                className="px-8 py-2 bg-supabase-panel border border-supabase-border text-supabase-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-supabase-green transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Selection Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-supabase-panel border border-supabase-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-supabase-border flex items-center justify-between bg-supabase-sidebar sticky top-0 z-10">
+              <div>
+                <h3 className="text-sm font-black text-supabase-text uppercase tracking-widest">Upload Students to {selectedDeviceName}</h3>
+                <p className="text-[10px] text-supabase-muted font-black uppercase tracking-widest mt-1">Select students to enroll on device</p>
+              </div>
+              <button 
+                onClick={() => setShowUploadModal(false)}
+                className="p-2 text-supabase-muted hover:text-supabase-text hover:bg-supabase-sidebar rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-supabase-border bg-supabase-panel/50 flex flex-col sm:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={14} />
+                <input
+                  type="text"
+                  placeholder="Search students..."
+                  value={uploadSearchTerm}
+                  onChange={(e) => setUploadSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-supabase-sidebar border border-supabase-border rounded-xl text-[10px] text-supabase-text focus:border-supabase-green outline-none transition-all uppercase font-black tracking-widest"
+                />
+              </div>
+              <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                <p className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">
+                  {selectedStudentIds.size} Selected
+                </p>
+                <button
+                  onClick={toggleAllStudents}
+                  className="text-[10px] font-black text-supabase-green uppercase tracking-widest hover:underline"
+                >
+                  {selectedStudentIds.size === filteredDbStudents.length ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {filteredDbStudents.map((student) => (
+                  <div 
+                    key={student.id} 
+                    onClick={() => toggleStudentSelection(student.id)}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center gap-4 group ${
+                      selectedStudentIds.has(student.id) 
+                        ? 'border-supabase-green bg-supabase-green/5' 
+                        : 'border-supabase-border bg-supabase-sidebar hover:border-supabase-green/30'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                      selectedStudentIds.has(student.id)
+                        ? 'bg-supabase-green border-supabase-green text-black'
+                        : 'border-supabase-border bg-supabase-panel'
+                    }`}>
+                      {selectedStudentIds.has(student.id) && <Check size={12} strokeWidth={4} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-black text-supabase-text uppercase tracking-tight truncate">{student.full_name}</p>
+                      <p className="text-[10px] text-supabase-muted font-mono">ID: {student.roll_number || student.id}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {filteredDbStudents.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 text-supabase-muted opacity-30 gap-3">
+                  <Search size={48} />
+                  <p className="text-[10px] font-black uppercase tracking-widest">No matching students found</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-supabase-border bg-supabase-sidebar flex flex-col gap-4">
+              {uploadProgress && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-[10px] font-black text-supabase-green uppercase tracking-widest animate-pulse">
+                        Uploading: {uploadProgress.currentName}
+                      </p>
+                      <button 
+                        onClick={() => {
+                          setShowUploadModal(false);
+                          syncData(selectedDeviceId, 'commands');
+                        }}
+                        className="text-[8px] font-black text-supabase-muted hover:text-supabase-green uppercase tracking-widest flex items-center gap-1 transition-colors"
+                      >
+                        <Activity size={10} /> View Command Queue
+                      </button>
+                    </div>
+                    <p className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">
+                      {uploadProgress.current} / {uploadProgress.total}
+                    </p>
+                  </div>
+                  <div className="h-1.5 w-full bg-supabase-panel rounded-full overflow-hidden border border-supabase-border">
+                    <div 
+                      className="h-full bg-supabase-green transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                      style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowUploadModal(false)}
+                  disabled={isUploadingSelected}
+                  className="px-6 py-2 bg-supabase-panel border border-supabase-border text-supabase-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-supabase-green transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUploadSelected}
+                  disabled={selectedStudentIds.size === 0 || isUploadingSelected}
+                  className="px-8 py-2 bg-supabase-green text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-supabase-green/90 transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isUploadingSelected ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={14} />
+                      Upload Selected
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

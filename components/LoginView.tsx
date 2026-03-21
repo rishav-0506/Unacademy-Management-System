@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Loader2, Mail, Lock, ShieldCheck, Eye, EyeOff, AlertCircle, Info, ChevronRight } from 'lucide-react';
+import { Loader2, Mail, Lock, ShieldCheck, Eye, EyeOff, AlertCircle, Info } from 'lucide-react';
 
 const LoginView: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -11,7 +11,7 @@ const LoginView: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { login, branding } = useAuth();
+  const { login } = useAuth();
   const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,23 +31,14 @@ const LoginView: React.FC = () => {
     }
   };
 
-  const autofill = (roleEmail: string) => {
-    setEmail(roleEmail);
-    setPassword('1234');
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-supabase-bg p-4 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-supabase-green/5 via-transparent to-transparent">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className={`w-14 h-14 bg-supabase-green rounded-xl flex items-center justify-center text-black font-bold text-3xl shadow-xl shadow-supabase-green/20 mb-4 transform hover:scale-105 transition-transform cursor-default overflow-hidden ${branding.logoUrl ? 'bg-transparent' : ''}`}>
-            {branding.logoUrl ? (
-                <img src={branding.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-            ) : (
-                'U'
-            )}
+          <div className="w-14 h-14 bg-supabase-green rounded-xl flex items-center justify-center text-black font-bold text-3xl shadow-xl shadow-supabase-green/20 mb-4 transform hover:scale-105 transition-transform cursor-default">
+            U
           </div>
-          <h1 className="text-2xl font-bold text-supabase-text tracking-tight">{branding.orgName || 'Unacademy Management'}</h1>
+          <h1 className="text-2xl font-bold text-supabase-text tracking-tight">Unacademy Management</h1>
           <p className="text-supabase-muted text-sm mt-2">Enter your credentials to access the console</p>
         </div>
 
@@ -123,38 +114,12 @@ const LoginView: React.FC = () => {
           </form>
 
           {/* Developer Hint */}
-          <div className="mt-6 pt-4 border-t border-supabase-border space-y-3">
-             <div className="flex items-start gap-2">
-                <Info size={14} className="text-supabase-green mt-0.5 shrink-0" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-supabase-muted">Development Access Control</span>
+          <div className="mt-6 pt-4 border-t border-supabase-border flex items-start gap-3 opacity-60 hover:opacity-100 transition-opacity">
+             <Info size={14} className="text-supabase-green mt-0.5 shrink-0" />
+             <div className="text-[10px] text-supabase-muted">
+                <span className="font-bold uppercase tracking-wider block mb-0.5">Development Access</span>
+                <span className="font-mono bg-supabase-bg px-1 rounded border border-supabase-border">dev@unacademy.system</span> / <span className="font-mono bg-supabase-bg px-1 rounded border border-supabase-border">1234</span>
              </div>
-             
-             <div className="grid grid-cols-1 gap-2">
-                <button onClick={() => autofill('dev@unacademy.system')} className="flex items-center justify-between p-2 rounded-lg bg-supabase-sidebar border border-supabase-border hover:border-supabase-green/50 hover:bg-supabase-green/5 transition-all group">
-                    <div className="text-left">
-                        <div className="text-[10px] font-black text-supabase-text uppercase">Super Admin</div>
-                        <div className="text-[9px] text-supabase-muted font-mono group-hover:text-supabase-green">dev@unacademy.system</div>
-                    </div>
-                    <ChevronRight size={14} className="text-supabase-muted group-hover:text-supabase-green" />
-                </button>
-                
-                <button onClick={() => autofill('admin@unacademy.system')} className="flex items-center justify-between p-2 rounded-lg bg-supabase-sidebar border border-supabase-border hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group">
-                    <div className="text-left">
-                        <div className="text-[10px] font-black text-supabase-text uppercase">Administrator</div>
-                        <div className="text-[9px] text-supabase-muted font-mono group-hover:text-blue-400">admin@unacademy.system</div>
-                    </div>
-                    <ChevronRight size={14} className="text-supabase-muted group-hover:text-blue-400" />
-                </button>
-
-                <button onClick={() => autofill('teacher@unacademy.system')} className="flex items-center justify-between p-2 rounded-lg bg-supabase-sidebar border border-supabase-border hover:border-purple-500/50 hover:bg-purple-500/5 transition-all group">
-                    <div className="text-left">
-                        <div className="text-[10px] font-black text-supabase-text uppercase">Teacher</div>
-                        <div className="text-[9px] text-supabase-muted font-mono group-hover:text-purple-400">teacher@unacademy.system</div>
-                    </div>
-                    <ChevronRight size={14} className="text-supabase-muted group-hover:text-purple-400" />
-                </button>
-             </div>
-             <p className="text-[9px] text-center text-supabase-muted opacity-60">Password for all accounts: 1234</p>
           </div>
         </div>
         

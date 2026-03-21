@@ -25,5 +25,14 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "include": [
+    "src",
+    "components",
+    "context",
+    "services",
+    "App.tsx",
+    "index.tsx",
+    "types.ts"
+  ]
 }

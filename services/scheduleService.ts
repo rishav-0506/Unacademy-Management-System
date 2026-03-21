@@ -155,6 +155,20 @@ export const scheduleService = {
       } catch (e: any) { return { success: false, error: e.message }; }
   },
 
+  async uploadStudentPhoto(file: File): Promise<{success: boolean, url?: string, error?: string}> {
+      if (!supabase) return { success: false, error: 'No database connection' };
+      try {
+          const compressedBlob = await compressImage(file);
+          const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.jpg`;
+          const filePath = `${fileName}`;
+          // Using student-avatars bucket
+          const { error: uploadError } = await supabase.storage.from('student-avatars').upload(filePath, compressedBlob, { contentType: 'image/jpeg', upsert: true });
+          if (uploadError) throw uploadError;
+          const { data } = supabase.storage.from('student-avatars').getPublicUrl(filePath);
+          return { success: true, url: data.publicUrl };
+      } catch (e: any) { return { success: false, error: e.message }; }
+  },
+
   async addTeacher(teacher: Omit<Teacher, 'id' | 'created_at'>): Promise<{success: boolean, error?: string}> {
       if (!supabase) return { success: false, error: 'No database connection' };
       try {

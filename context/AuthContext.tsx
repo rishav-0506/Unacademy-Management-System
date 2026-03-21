@@ -11,26 +11,6 @@ export interface User {
   id: string;
 }
 
-export interface BrandingConfig {
-  orgName: string;
-  logoUrl: string;
-  iconUrl: string;
-  unit: string;
-  contactEmail: string;
-  contactPhone: string;
-  address: string;
-}
-
-const DEFAULT_BRANDING: BrandingConfig = {
-  orgName: 'Unacademy Management',
-  logoUrl: '',
-  iconUrl: '',
-  unit: 'USD',
-  contactEmail: '',
-  contactPhone: '',
-  address: ''
-};
-
 export type PermissionKey = 
   | 'VIEW_DASHBOARD'
   | 'VIEW_SCHEDULE_LIST'
@@ -43,6 +23,7 @@ export type PermissionKey =
   | 'PUBLISH_SCHEDULE' 
   | 'EDIT_SCHEDULE' 
   | 'VIEW_REPORTS' 
+  | 'VIEW_ACADEMIC'
   | 'ACCESS_SQL_EDITOR' 
   | 'MANAGE_ROLES';
 
@@ -60,7 +41,6 @@ interface AuthContextType {
   departments: string[];
   designations: string[];
   departmentDesignationMap: Record<string, string[]>;
-  branding: BrandingConfig;
   updatePermission: (key: PermissionKey, roles: UserRole[]) => Promise<void>;
   addRole: (roleName: string) => Promise<void>;
   deleteRole: (roleName: string) => Promise<void>;
@@ -71,7 +51,6 @@ interface AuthContextType {
   updateDeptMap: (dept: string, selectedDesignations: string[]) => void;
   saveSystemConfig: () => Promise<void>;
   saveSystemRoles: () => Promise<void>;
-  updateBranding: (config: BrandingConfig) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -99,30 +78,16 @@ const DEFAULT_PERMISSIONS: PermissionMap = {
   PUBLISH_SCHEDULE: ['superadmin', 'administrator', 'editor', 'admin'],
   EDIT_SCHEDULE: ['superadmin', 'administrator', 'editor', 'admin'],
   VIEW_REPORTS: ['superadmin', 'administrator', 'editor', 'viewer', 'admin', 'teacher'],
+  VIEW_ACADEMIC: ['superadmin', 'administrator', 'admin', 'editor', 'teacher', 'viewer'],
   ACCESS_SQL_EDITOR: ['superadmin', 'administrator', 'admin'],
   MANAGE_ROLES: ['superadmin'],
 };
 
-// Expanded Mock Users for Role Testing
-const MOCK_USERS: Record<string, User> = {
-  'dev@unacademy.system': {
-    id: 'dev-superadmin',
-    email: 'dev@unacademy.system',
-    name: 'System Superadmin',
-    role: 'superadmin'
-  },
-  'admin@unacademy.system': {
-    id: 'dev-admin',
-    email: 'admin@unacademy.system',
-    name: 'Operational Admin',
-    role: 'administrator'
-  },
-  'teacher@unacademy.system': {
-    id: 'dev-teacher',
-    email: 'teacher@unacademy.system',
-    name: 'Faculty Member',
-    role: 'teacher'
-  }
+const MOCK_USER: User = {
+  id: 'dev-mode-user',
+  email: 'dev@unacademy.system',
+  name: 'Development Admin',
+  role: 'superadmin'
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -133,7 +98,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [departments, setDepartments] = useState<string[]>(INITIAL_DEPARTMENTS);
   const [designations, setDesignations] = useState<string[]>(INITIAL_DESIGNATIONS);
   const [departmentDesignationMap, setDepartmentDesignationMap] = useState<Record<string, string[]>>(DEFAULT_DEPT_MAP);
-  const [branding, setBranding] = useState<BrandingConfig>(DEFAULT_BRANDING);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -154,15 +118,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           const { data: mapData } = await supabase.from('system_config').select('value').eq('key', 'dept_designation_map').maybeSingle();
           if (mapData?.value) setDepartmentDesignationMap(mapData.value as Record<string, string[]>);
-
-          const { data: brandData } = await supabase.from('system_config').select('value').eq('key', 'branding_identity').maybeSingle();
-          if (brandData?.value) setBranding(brandData.value as BrandingConfig);
         }
 
         const savedUser = localStorage.getItem('unacademy_auth_user');
         if (savedUser) {
           setUser(JSON.parse(savedUser));
         }
+        // NOTE: MOCK_USER auto-login removed to enable actual login screen
       } catch (e) {
         console.error("Auth initialization failed:", e);
       } finally {
@@ -193,13 +155,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.from('system_config').upsert({ key: 'system_departments', value: departments }, { onConflict: 'key' });
       await supabase.from('system_config').upsert({ key: 'system_designations', value: designations }, { onConflict: 'key' });
       await supabase.from('system_config').upsert({ key: 'dept_designation_map', value: departmentDesignationMap }, { onConflict: 'key' });
-    }
-  };
-
-  const updateBranding = async (config: BrandingConfig) => {
-    setBranding(config);
-    if (supabase) {
-        await supabase.from('system_config').upsert({ key: 'branding_identity', value: config }, { onConflict: 'key' });
     }
   };
 
@@ -251,10 +206,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // 1. Expanded Backdoor for Dev/Demo Roles
-      if (password === '1234' && MOCK_USERS[email]) {
-        setUser(MOCK_USERS[email]);
-        localStorage.setItem('unacademy_auth_user', JSON.stringify(MOCK_USERS[email]));
+      // 1. Backdoor for Dev/Demo Environment (Works without Database)
+      if (email === MOCK_USER.email && password === '1234') {
+        setUser(MOCK_USER);
+        localStorage.setItem('unacademy_auth_user', JSON.stringify(MOCK_USER));
         return;
       }
 
@@ -281,8 +236,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={{ 
-      user, isAuthenticated: !!user, login, logout, isLoading, hasPermission, permissions, availableRoles, departments, designations, departmentDesignationMap, branding,
-      updatePermission, addRole, deleteRole, addDepartment, deleteDepartment, addDesignation, deleteDesignation, updateDeptMap, saveSystemConfig, saveSystemRoles, updateBranding
+      user, isAuthenticated: !!user, login, logout, isLoading, hasPermission, permissions, availableRoles, departments, designations, departmentDesignationMap,
+      updatePermission, addRole, deleteRole, addDepartment, deleteDepartment, addDesignation, deleteDesignation, updateDeptMap, saveSystemConfig, saveSystemRoles 
     }}>
       {children}
     </AuthContext.Provider>

@@ -5,16 +5,13 @@ import { useAuth, PermissionKey } from '../context/AuthContext';
 import { 
   LayoutDashboard, 
   Table, 
-  Database, 
   Settings, 
   Users, 
   Radio, 
   ChevronDown, 
   ChevronRight, 
-  Archive, 
   CalendarDays, 
   GraduationCap, 
-  Terminal, 
   ShieldCheck, 
   CheckSquare, 
   Clock, 
@@ -22,7 +19,6 @@ import {
   ListChecks,
   Briefcase,
   Cpu,
-  FileText,
   CreditCard,
   Book,
   Activity,
@@ -37,7 +33,10 @@ import {
   BarChart3,
   MessageSquarePlus,
   History,
-  ListTodo
+  ListTodo,
+  UserPlus,
+  MessageSquare,
+  BookOpen
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -48,20 +47,23 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen = false, onClose }) => {
-  const { hasPermission, user, branding } = useAuth();
+  const { hasPermission, user, designations } = useAuth();
   const [isScheduleExpanded, setIsScheduleExpanded] = useState(true);
   const [isTeacherExpanded, setIsTeacherExpanded] = useState(false);
+  const [isAcademicExpanded, setIsAcademicExpanded] = useState(false);
   const [isPayrollExpanded, setIsPayrollExpanded] = useState(false);
 
   // Group views
   const scheduleViews = [View.CLASS_SCHEDULE, View.TABLE_EDITOR, View.LIVE_SCHEDULE];
   const teacherViews = [View.TEACHER_TASKS, View.TODAY_TASK];
+  const academicViews = [View.STUDENTS, View.STUDENT_ATTENDANCE, View.REGISTRATION, View.ADMISSION, View.STUDENT_FEEDBACK];
   const payrollViews = [View.PAYROLL, View.PAYROLL_SETUP, View.PAYROLL_BASE_SALARY, View.PAYROLL_DEDUCTIONS];
   
   // Auto-expand if current view is in the group
   useEffect(() => {
     if (scheduleViews.includes(currentView)) setIsScheduleExpanded(true);
     if (teacherViews.includes(currentView)) setIsTeacherExpanded(true);
+    if (academicViews.includes(currentView)) setIsAcademicExpanded(true);
     if (payrollViews.includes(currentView)) setIsPayrollExpanded(true);
   }, [currentView]);
 
@@ -111,15 +113,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen = f
       `}>
         {/* Project Header */}
         <div className="h-14 flex items-center px-4 border-b border-supabase-border">
-          <div className={`w-8 h-8 rounded flex items-center justify-center text-black font-bold mr-3 transition-colors overflow-hidden ${!branding.logoUrl ? (user?.role === 'superadmin' ? 'bg-purple-400' : 'bg-supabase-green') : 'bg-transparent'}`}>
-            {branding.logoUrl ? (
-                <img src={branding.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-            ) : (
-                user?.role === 'superadmin' ? 'S' : 'U'
-            )}
+          <div className={`w-8 h-8 rounded flex items-center justify-center text-black font-bold mr-3 transition-colors ${user?.role === 'superadmin' ? 'bg-purple-400' : 'bg-supabase-green'}`}>
+            {user?.role === 'superadmin' ? 'S' : 'U'}
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-medium text-supabase-text truncate">{branding.orgName || 'Unacademy'}</div>
+            <div className="text-sm font-medium text-supabase-text truncate">Unacademy</div>
             <div className="text-[10px] text-supabase-muted uppercase tracking-tighter truncate">
                 {user?.role === 'superadmin' ? 'System Superadmin' : 'Management System'}
             </div>
@@ -136,6 +134,34 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen = f
           {renderNavItem(View.ENQUIRE_CALL, 'Enquire Call', <MessageSquarePlus size={18} />, 'VIEW_TEACHER_TASKS')}
           {renderNavItem(View.STUDENT_ATTENDANCE, 'Student Attendance', <UserCheck size={18} />, 'VIEW_TEACHER_TASKS')}
           {renderNavItem(View.ABSENT_CALL, 'Absent Call', <PhoneCall size={18} />, 'VIEW_TEACHER_TASKS')}
+
+          <div className="mt-6 mb-2 text-xs font-semibold text-supabase-muted uppercase tracking-wider px-3 pb-2">
+            Academic
+          </div>
+          
+          <div className="mb-1">
+            <button 
+              onClick={() => setIsAcademicExpanded(!isAcademicExpanded)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-md transition-colors text-sm font-medium 
+                ${academicViews.includes(currentView) ? 'text-supabase-text' : 'text-supabase-muted hover:text-supabase-text hover:bg-supabase-hover'}`}
+            >
+              <div className="flex items-center gap-3">
+                <BookOpen size={18} className={academicViews.includes(currentView) ? 'text-supabase-green' : ''} />
+                <span>Academic</span>
+              </div>
+              {isAcademicExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
+            
+            {isAcademicExpanded && (
+              <div className="mt-1 space-y-0.5">
+                {renderNavItem(View.STUDENTS, "Student's", <Users size={18} />, 'VIEW_ACADEMIC', true)}
+                {renderNavItem(View.STUDENT_ATTENDANCE, 'Attendance', <UserCheck size={18} />, 'VIEW_ACADEMIC', true)}
+                {renderNavItem(View.REGISTRATION, 'Registration', <ClipboardList size={18} />, 'VIEW_ACADEMIC', true)}
+                {renderNavItem(View.ADMISSION, 'Admission', <UserPlus size={18} />, 'VIEW_ACADEMIC', true)}
+                {renderNavItem(View.STUDENT_FEEDBACK, "Student's Feedback", <MessageSquare size={18} />, 'VIEW_ACADEMIC', true)}
+              </div>
+            )}
+          </div>
           
           {/* Grouped Schedule Menu */}
           <div className="mb-1">
@@ -188,7 +214,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen = f
           {renderNavItem(View.ATTENDANCE_DASHBOARD, 'Attendance Stats', <BarChart3 size={18} />, 'VIEW_REPORTS')}
           {renderNavItem(View.ENQUIRE_CALL_LOG, 'Enquiry Call Log', <History size={18} />, 'VIEW_REPORTS')}
           {renderNavItem(View.ABSENT_CALL_LOG, 'Absent Call Log', <ClipboardList size={18} />, 'VIEW_REPORTS')}
-          {renderNavItem(View.DOCUMENT, 'Documents', <FileText size={18} />, 'VIEW_REPORTS')}
           {renderNavItem(View.BANKING, 'Banking', <CreditCard size={18} />, 'VIEW_REPORTS')}
           {renderNavItem(View.LEDGER, 'Ledger', <Book size={18} />, 'VIEW_REPORTS')}
           {renderNavItem(View.WORK_PROGRESS, 'Work Progress', <Activity size={18} />, 'VIEW_REPORTS')}
@@ -202,7 +227,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen = f
           {renderNavItem(View.ACCESS_CONTROL, 'Access Control', <ShieldCheck size={18} />, 'MANAGE_ROLES')}
           {renderNavItem(View.TASK_MANAGEMENT, 'Task Management', <ListTodo size={18} />, 'VIEW_TEACHER_TASKS')}
 
-          {renderNavItem(View.SQL_EDITOR, 'SQL Editor', <Terminal size={18} />, 'ACCESS_SQL_EDITOR')}
           {renderNavItem(View.MCP_CONSOLE, 'MCP Console', <Cpu size={18} />, 'ACCESS_SQL_EDITOR')}
 
           <div className="mt-6 mb-2 text-xs font-semibold text-supabase-muted uppercase tracking-wider px-3 pb-2">
@@ -245,19 +269,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen = f
             <User size={18} />
             <span>My Profile</span>
           </button>
-
-          <button className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-supabase-muted hover:text-supabase-text hover:bg-supabase-hover text-sm font-medium mt-4">
-            <Database size={18} />
-            <span>Database</span>
-          </button>
         </div>
 
         {/* Bottom Nav */}
         <div className="p-3 border-t border-supabase-border">
-            <button className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-supabase-muted hover:text-supabase-text hover:bg-supabase-hover text-sm font-medium mb-1">
-                <Archive size={18} />
-                <span>Storage</span>
-            </button>
             {renderNavItem(View.SETTINGS, 'Settings', <Settings size={18} />, 'VIEW_SETTINGS')}
         </div>
       </div>
