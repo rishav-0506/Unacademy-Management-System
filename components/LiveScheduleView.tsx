@@ -201,18 +201,18 @@ const LiveScheduleView: React.FC = () => {
     }
 
     return (
-        <div className="h-full flex flex-col bg-supabase-bg text-supabase-text font-sans p-6 overflow-hidden relative">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 bg-supabase-panel p-4 rounded-lg border border-supabase-border shrink-0">
-                <div className="flex items-center gap-3">
-                    <Calendar className="text-supabase-green" size={24} />
-                    <h1 className="text-lg font-bold tracking-wide text-supabase-text uppercase">Live Schedule View</h1>
+        <div className="h-full flex flex-col bg-supabase-bg text-supabase-text font-sans p-4 sm:p-6 overflow-hidden relative">
+            <div className="min-h-[4rem] border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shrink-0 z-10 shadow-sm gap-4 sm:gap-0 mb-4 sm:mb-6 rounded-lg">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <Calendar className="text-supabase-green shrink-0" size={20} />
+                    <h1 className="text-sm sm:text-base font-bold tracking-wide text-supabase-text uppercase truncate">Live Schedule View</h1>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-start sm:justify-end w-full sm:w-auto">
                     {schedules.map(sch => (
                         <button
                             key={sch.id}
                             onClick={() => setSelectedId(sch.id)}
-                            className={`px-4 py-1.5 rounded text-xs font-bold transition-all border ${
+                            className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded text-[10px] sm:text-xs font-bold transition-all border shrink-0 ${
                                 selectedId === sch.id
                                     ? 'bg-supabase-green/10 text-supabase-green border-supabase-green'
                                     : 'bg-supabase-sidebar text-supabase-muted border-supabase-border hover:text-supabase-text hover:border-supabase-muted'
@@ -305,39 +305,39 @@ const LiveScheduleView: React.FC = () => {
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-supabase-panel border border-supabase-border rounded-lg shadow-2xl w-full max-w-md overflow-hidden">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-supabase-border bg-supabase-sidebar">
-                            <h2 className="text-sm font-semibold text-supabase-text">
-                                {editingSessionId ? 'Edit Session' : 'Add New Session'}
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in duration-200">
+                    <div className="bg-supabase-panel border border-supabase-border rounded-xl shadow-2xl w-full max-w-md max-h-[95vh] overflow-hidden flex flex-col ring-1 ring-white/10">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-supabase-border bg-supabase-sidebar shrink-0">
+                            <h2 className="text-xs font-black text-supabase-text uppercase tracking-widest">
+                                {editingSessionId ? 'Protocol: Edit Session' : 'Protocol: New Session'}
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-supabase-muted hover:text-supabase-text">
+                            <button onClick={() => setIsModalOpen(false)} className="text-supabase-muted hover:text-supabase-text p-2 hover:bg-supabase-bg rounded-lg transition-colors shrink-0">
                                 <X size={18} />
                             </button>
                         </div>
                         
-                        <form onSubmit={handleSave} className="p-6 space-y-4">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-supabase-muted">Subject</label>
+                        <form onSubmit={handleSave} className="p-6 space-y-5 overflow-y-auto custom-scrollbar">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">Subject Matrix Node</label>
                                 <select 
                                     required
                                     value={formData.title}
                                     onChange={e => setFormData({...formData, title: e.target.value, instructor: ''})}
-                                    className="w-full bg-supabase-bg border border-supabase-border rounded px-3 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green"
+                                    className="w-full bg-supabase-bg border border-supabase-border rounded-lg px-4 py-2.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green shadow-inner font-bold"
                                 >
                                     <option value="" disabled>Select Subject</option>
                                     {availableSubjects.map(sub => <option key={sub.id} value={sub.name}>{sub.name}</option>)}
                                 </select>
                             </div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-supabase-muted">Instructor</label>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">Assigned Instructor</label>
                                 <select 
                                     required
                                     value={formData.instructor}
                                     onChange={e => setFormData({...formData, instructor: e.target.value})}
                                     disabled={!formData.title}
-                                    className="w-full bg-supabase-bg border border-supabase-border rounded px-3 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green disabled:opacity-50"
+                                    className="w-full bg-supabase-bg border border-supabase-border rounded-lg px-4 py-2.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green disabled:opacity-50 shadow-inner font-bold"
                                 >
                                     <option value="" disabled>Select Instructor</option>
                                     {filteredTeachers.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
@@ -345,18 +345,18 @@ const LiveScheduleView: React.FC = () => {
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-supabase-muted">Start Time</label>
-                                    <input type="time" required value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} className="w-full bg-supabase-bg border border-supabase-border rounded px-3 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green" />
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">Start Time</label>
+                                    <input type="time" required value={formData.startTime} onChange={e => setFormData({...formData, startTime: e.target.value})} className="w-full bg-supabase-bg border border-supabase-border rounded-lg px-4 py-2.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green shadow-inner font-mono" />
                                 </div>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-medium text-supabase-muted">End Time</label>
-                                    <input type="time" required value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} className="w-full bg-supabase-bg border border-supabase-border rounded px-3 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green" />
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">End Time</label>
+                                    <input type="time" required value={formData.endTime} onChange={e => setFormData({...formData, endTime: e.target.value})} className="w-full bg-supabase-bg border border-supabase-border rounded-lg px-4 py-2.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green shadow-inner font-mono" />
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-medium text-supabase-muted uppercase tracking-wider flex items-center gap-1.5">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-supabase-muted uppercase tracking-widest flex items-center gap-1.5">
                                     <MapPin size={12} /> Room Number Override
                                 </label>
                                 <input 
@@ -364,16 +364,16 @@ const LiveScheduleView: React.FC = () => {
                                     value={formData.room} 
                                     placeholder={currentClassInfo?.room_no || "Room number..."}
                                     onChange={e => setFormData({...formData, room: e.target.value})} 
-                                    className="w-full bg-supabase-bg border border-supabase-border rounded px-3 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green" 
+                                    className="w-full bg-supabase-bg border border-supabase-border rounded-lg px-4 py-2.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green shadow-inner font-bold" 
                                 />
-                                <p className="text-[10px] text-supabase-muted italic">Leave blank to use class default: {currentClassInfo?.room_no || 'None'}</p>
+                                <p className="text-[9px] text-supabase-muted italic uppercase tracking-tighter">Default: {currentClassInfo?.room_no || 'None'}</p>
                             </div>
 
                             <div className="pt-2">
                                 <button 
                                     type="button"
                                     onClick={() => setFormData(prev => ({...prev, show_profiles: !prev.show_profiles}))}
-                                    className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                                    className={`w-full flex items-center justify-between p-4 rounded-xl border transition-all ${
                                         formData.show_profiles 
                                             ? 'bg-supabase-green/5 border-supabase-green/30 text-supabase-green' 
                                             : 'bg-supabase-sidebar border-supabase-border text-supabase-muted'
@@ -381,7 +381,7 @@ const LiveScheduleView: React.FC = () => {
                                 >
                                     <div className="flex items-center gap-3">
                                         <UserCircle size={18} />
-                                        <span className="text-xs font-medium">Show Profile Picture</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Show Profile Picture</span>
                                     </div>
                                     <div className={`w-8 h-4 rounded-full relative transition-colors ${formData.show_profiles ? 'bg-supabase-green' : 'bg-supabase-muted'}`}>
                                         <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all transform ${formData.show_profiles ? 'translate-x-4' : 'translate-x-0.5'}`}></div>
@@ -389,17 +389,17 @@ const LiveScheduleView: React.FC = () => {
                                 </button>
                             </div>
 
-                            <div className="pt-4 flex justify-between gap-3">
+                            <div className="pt-4 flex flex-col sm:flex-row justify-between gap-3 border-t border-supabase-border/50">
                                 {editingSessionId && (
-                                    <button type="button" onClick={handleDelete} className="px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 rounded flex items-center gap-2">
-                                        <Trash2 size={16} /> Delete
+                                    <button type="button" onClick={handleDelete} className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 rounded-lg flex items-center justify-center gap-2 transition-all">
+                                        <Trash2 size={16} /> Delete Session
                                     </button>
                                 )}
-                                <div className="flex gap-2 ml-auto">
-                                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-supabase-muted">Cancel</button>
-                                    <button type="submit" disabled={isSaving} className="bg-supabase-green text-black px-4 py-2 rounded text-sm font-medium flex items-center gap-2 disabled:opacity-50 transition-all hover:bg-supabase-greenHover">
+                                <div className="flex gap-2 ml-auto w-full sm:w-auto">
+                                    <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 sm:flex-none px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-supabase-muted hover:text-supabase-text transition-colors">Cancel</button>
+                                    <button type="submit" disabled={isSaving} className="flex-1 sm:flex-none bg-supabase-green text-black px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 transition-all hover:bg-supabase-greenHover shadow-lg shadow-supabase-green/20">
                                         {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
-                                        {editingSessionId ? 'Update' : 'Save'}
+                                        {editingSessionId ? 'Commit Update' : 'Commit Session'}
                                     </button>
                                 </div>
                             </div>

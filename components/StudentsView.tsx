@@ -271,7 +271,7 @@ const StudentsView: React.FC = () => {
         </div>
 
         {/* Profile Content */}
-        <div className="flex-1 overflow-auto p-6 scrollbar-hide">
+        <div className="flex-1 overflow-auto p-4 sm:p-6 scrollbar-hide">
           <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column: Basic Info Card */}
             <div className="lg:col-span-1 space-y-6">
@@ -547,7 +547,7 @@ const StudentsView: React.FC = () => {
                     <label className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">Class</label>
                     <select 
                       className="w-full bg-supabase-bg border border-supabase-border rounded-xl px-4 py-2.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
-                      value={editingStudent.class_name}
+                      value={editingStudent.class_name || ''}
                       onChange={(e) => setEditingStudent({...editingStudent, class_name: e.target.value})}
                       required
                     >
@@ -664,14 +664,14 @@ const StudentsView: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-supabase-bg">
       {/* Header Section */}
-      <div className="p-6 border-b border-supabase-border bg-supabase-panel/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-4 sm:p-6 border-b border-supabase-border bg-supabase-panel/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black text-supabase-text uppercase tracking-tighter flex items-center gap-3">
-              <Users className="text-supabase-green" size={28} />
+            <h1 className="text-xl sm:text-2xl font-black text-supabase-text uppercase tracking-tighter flex items-center gap-3">
+              <Users className="text-supabase-green" size={24} />
               Student Directory
             </h1>
-            <p className="text-xs text-supabase-muted mt-1 font-medium uppercase tracking-wider">
+            <p className="text-[10px] sm:text-xs text-supabase-muted mt-1 font-medium uppercase tracking-wider">
               Managing {filteredStudents.length} of {students.length} Total Students
             </p>
           </div>
@@ -684,7 +684,7 @@ const StudentsView: React.FC = () => {
             >
               <Filter size={20} />
             </button>
-            <button className="flex items-center gap-2 bg-supabase-green text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/20">
+            <button className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-supabase-green text-black px-4 py-2 rounded-lg font-bold text-sm hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/20">
               <Plus size={18} />
               <span>Add Student</span>
             </button>
@@ -692,12 +692,12 @@ const StudentsView: React.FC = () => {
         </div>
 
         {/* Filters Bar */}
-        <div className="mt-6 flex flex-col md:flex-row gap-3">
+        <div className="mt-6 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={18} />
             <input 
               type="text"
-              placeholder="Search by name, roll number, or email..."
+              placeholder="Search..."
               className="w-full bg-supabase-bg border border-supabase-border rounded-xl py-2.5 pl-10 pr-4 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -706,7 +706,7 @@ const StudentsView: React.FC = () => {
           
           <div className="flex gap-2">
             <select 
-              className="bg-supabase-bg border border-supabase-border rounded-xl px-4 py-2.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all appearance-none cursor-pointer min-w-[160px]"
+              className="flex-1 sm:flex-none bg-supabase-bg border border-supabase-border rounded-xl px-4 py-2.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all appearance-none cursor-pointer sm:min-w-[160px]"
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
             >
@@ -718,7 +718,7 @@ const StudentsView: React.FC = () => {
             
             <button className="flex items-center gap-2 bg-supabase-panel border border-supabase-border text-supabase-text px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-supabase-hover transition-all">
               <Download size={18} />
-              <span className="hidden md:inline">Export</span>
+              <span className="hidden sm:inline">Export</span>
             </button>
           </div>
         </div>
@@ -733,8 +733,8 @@ const StudentsView: React.FC = () => {
             <p className="text-sm">Try adjusting your search or filters</p>
           </div>
         ) : viewMode === 'list' ? (
-          <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-hidden shadow-xl">
-            <table className="w-full text-left border-collapse">
+          <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-hidden shadow-xl overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-supabase-bg/50 border-b border-supabase-border">
                   <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-supabase-muted">Student Info</th>

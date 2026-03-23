@@ -243,22 +243,24 @@ const TableEditor: React.FC<TableEditorProps> = ({ onlyLive = false }) => {
 
   return (
     <div className="h-full flex flex-col bg-supabase-bg relative">
-      <div className="h-12 border-b border-supabase-border flex items-center px-4 justify-between bg-supabase-panel">
-         <div className="flex items-center gap-4">
-             <div className="flex items-center gap-2 text-sm text-supabase-text font-medium">
+      <div className="min-h-[3rem] h-auto sm:h-12 border-b border-supabase-border flex flex-col sm:flex-row items-start sm:items-center px-4 py-2 sm:py-0 justify-between bg-supabase-panel gap-3 sm:gap-0">
+         <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+             <div className="flex items-center gap-2 text-xs sm:text-sm text-supabase-text font-medium">
                  {onlyLive ? <Radio size={14} className="text-red-400 animate-pulse" /> : <Lock size={14} className="text-supabase-muted" />}
-                 {onlyLive ? 'Live Schedules (Active)' : 'public.weekly_schedules'}
+                 <span className="truncate max-w-[150px] sm:max-w-none">{onlyLive ? 'Live Schedules' : 'public.weekly_schedules'}</span>
              </div>
-             <div className="h-4 w-px bg-supabase-border"></div>
-             <button className="flex items-center gap-1.5 text-xs text-supabase-muted hover:text-supabase-text px-2 py-1 rounded hover:bg-supabase-hover transition-colors"><Filter size={14} /> Filter</button>
-             <button className="flex items-center gap-1.5 text-xs text-supabase-muted hover:text-supabase-text px-2 py-1 rounded hover:bg-supabase-hover transition-colors"><ArrowUpDown size={14} /> Sort</button>
+             <div className="hidden xs:block h-4 w-px bg-supabase-border"></div>
+             <div className="flex items-center gap-1 sm:gap-2">
+                <button className="flex items-center gap-1.5 text-[10px] sm:text-xs text-supabase-muted hover:text-supabase-text px-1.5 sm:px-2 py-1 rounded hover:bg-supabase-hover transition-colors"><Filter size={12} sm:size={14} /> Filter</button>
+                <button className="flex items-center gap-1.5 text-[10px] sm:text-xs text-supabase-muted hover:text-supabase-text px-1.5 sm:px-2 py-1 rounded hover:bg-supabase-hover transition-colors"><ArrowUpDown size={12} sm:size={14} /> Sort</button>
+             </div>
          </div>
-         <div className="flex items-center gap-2">
+         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button onClick={() => fetchData(false)} className="flex items-center gap-1 text-xs text-supabase-muted hover:text-supabase-text px-2 py-1 rounded hover:bg-supabase-hover transition-colors">
                 <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
             </button>
             {hasPermission('EDIT_SCHEDULE') && (
-                <button className="flex items-center gap-1 text-xs bg-supabase-green/10 text-supabase-green border border-supabase-green/20 px-3 py-1.5 rounded hover:bg-supabase-green/20 transition-colors">
+                <button className="flex items-center gap-1 text-[10px] sm:text-xs bg-supabase-green/10 text-supabase-green border border-supabase-green/20 px-2 sm:px-3 py-1 sm:py-1.5 rounded hover:bg-supabase-green/20 transition-colors whitespace-nowrap">
                     <Plus size={14} /> Insert Row
                 </button>
             )}

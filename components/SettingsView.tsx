@@ -5,7 +5,7 @@ import {
   Shield, Trash2, ShieldPlus, Save, Loader2, Building2, Plus, 
   Database, CloudCheck, Layout, Briefcase, Award, Link2, Check, Search, Upload, Clock,
   ChevronRight, Fingerprint, Cpu, UploadCloud, DownloadCloud, Activity, 
-  RefreshCw, Server, Wifi, WifiOff, X, UserCheck
+  RefreshCw, Server, Wifi, WifiOff, X, UserCheck, BookOpen, Layers
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -31,10 +31,19 @@ const SettingsView: React.FC = () => {
   } = useAuth();
   const { showToast } = useToast();
   
-  const [activeTab, setActiveTab] = useState<'roles' | 'departments' | 'designations' | 'mappings' | 'biometric'>('roles');
+  const [activeTab, setActiveTab] = useState<'roles' | 'departments' | 'designations' | 'mappings' | 'biometric' | 'academic'>('roles');
   const [newRole, setNewRole] = useState('');
   const [newDept, setNewDept] = useState('');
   const [newDesig, setNewDesig] = useState('');
+  
+  // Academic State
+  const [classes, setClasses] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
+  const [isFetchingAcademic, setIsFetchingAcademic] = useState(false);
+  const [newClass, setNewClass] = useState({ name: '', section: 'A', room_no: '', level: 0 });
+  const [newSubject, setNewSubject] = useState('');
+  const [newSection, setNewSection] = useState('');
   
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -78,7 +87,144 @@ const SettingsView: React.FC = () => {
       fetchDevices();
       fetchCloudConfig();
     }
+    if (activeTab === 'academic') {
+      fetchAcademicData();
+    }
   }, [activeTab]);
+
+  const fetchAcademicData = async () => {
+    if (!supabase) return;
+    setIsFetchingAcademic(true);
+    try {
+      const [classesRes, subjectsRes, sectionsRes] = await Promise.all([
+        supabase.from('classes').select('*').order('name'),
+        supabase.from('subjects').select('*').order('name'),
+        supabase.from('sections').select('*').order('name')
+      ]);
+
+      if (classesRes.error) throw classesRes.error;
+      if (subjectsRes.error) throw subjectsRes.error;
+      if (sectionsRes.error) throw sectionsRes.error;
+
+      setClasses(classesRes.data || []);
+      setSubjects(subjectsRes.data || []);
+      setSections(sectionsRes.data || []);
+    } catch (e: any) {
+      showToast("Failed to fetch academic data: " + e.message, "error");
+    } finally {
+      setIsFetchingAcademic(false);
+    }
+  };
+
+  const handleAddClass = async () => {
+    if (!newClass.name || !supabase) {
+      showToast("Class name is required", "error");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.from('classes').insert([
+        { 
+          name: newClass.name, 
+          section: newClass.section, 
+          room_no: newClass.room_no, 
+          level: newClass.level 
+        }
+      ]).select();
+      
+      if (error) throw error;
+      
+      setClasses([...classes, data[0]]);
+      setNewClass({ name: '', section: 'A', room_no: '', level: 0 });
+      showToast("Class added successfully", "success");
+    } catch (e: any) {
+      showToast("Failed to add class: " + e.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteClass = async (id: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.from('classes').delete().eq('id', id);
+      if (error) throw error;
+      setClasses(classes.filter(c => c.id !== id));
+      showToast("Class removed", "success");
+    } catch (e: any) {
+      showToast("Failed to remove class: " + e.message, "error");
+    }
+  };
+
+  const handleAddSubject = async () => {
+    if (!newSubject.trim() || !supabase) {
+      showToast("Subject name is required", "error");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.from('subjects').insert([
+        { name: newSubject.trim() }
+      ]).select();
+      
+      if (error) throw error;
+      
+      setSubjects([...subjects, data[0]]);
+      setNewSubject('');
+      showToast("Subject added successfully", "success");
+    } catch (e: any) {
+      showToast("Failed to add subject: " + e.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteSubject = async (id: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.from('subjects').delete().eq('id', id);
+      if (error) throw error;
+      setSubjects(subjects.filter(s => s.id !== id));
+      showToast("Subject removed", "success");
+    } catch (e: any) {
+      showToast("Failed to remove subject: " + e.message, "error");
+    }
+  };
+
+  const handleAddSection = async () => {
+    if (!newSection.trim() || !supabase) {
+      showToast("Section name is required", "error");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.from('sections').insert([
+        { name: newSection.trim() }
+      ]).select();
+      
+      if (error) throw error;
+      
+      setSections([...sections, data[0]]);
+      setNewSection('');
+      showToast("Section added successfully", "success");
+    } catch (e: any) {
+      showToast("Failed to add section: " + e.message, "error");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteSection = async (id: string) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.from('sections').delete().eq('id', id);
+      if (error) throw error;
+      setSections(sections.filter(s => s.id !== id));
+      showToast("Section removed", "success");
+    } catch (e: any) {
+      showToast("Failed to remove section: " + e.message, "error");
+    }
+  };
 
   const fetchCloudConfig = async () => {
     if (!supabase) return;
@@ -340,7 +486,11 @@ const SettingsView: React.FC = () => {
   const persistConfig = async () => {
     setIsSaving(true);
     try {
-      await saveSystemConfig();
+      await saveSystemConfig({
+        classes,
+        subjects,
+        sections
+      }, cloudConfig);
       showToast("Infrastructure state persisted to database", "success");
     } catch (e: any) {
       showToast("Sync failed: " + e.message, "error");
@@ -389,7 +539,8 @@ const SettingsView: React.FC = () => {
           { id: 'departments', icon: Building2, label: 'Departments' },
           { id: 'designations', icon: Briefcase, label: 'Designations' },
           { id: 'mappings', icon: Link2, label: 'Relationship Mapping' },
-          { id: 'biometric', icon: Fingerprint, label: 'Biometric System' }
+          { id: 'biometric', icon: Fingerprint, label: 'Biometric System' },
+          { id: 'academic', icon: BookOpen, label: 'Academic' }
         ].map(tab => (
           <button 
             key={tab.id}
@@ -752,6 +903,212 @@ const SettingsView: React.FC = () => {
                             Last Sync: {new Date(device.last_sync).toLocaleString()}
                           </div>
                         )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'academic' && (
+          <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
+            {/* Classes Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="md:col-span-1 space-y-4">
+                <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text flex items-center gap-2">
+                    <Plus size={14} className="text-supabase-green" />
+                    Add New Class
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Class Name</label>
+                      <input 
+                        type="text" 
+                        value={newClass.name} 
+                        onChange={e => setNewClass({...newClass, name: e.target.value})} 
+                        placeholder="e.g. Class 10" 
+                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Section</label>
+                        {sections.length > 0 ? (
+                          <select 
+                            value={newClass.section} 
+                            onChange={e => setNewClass({...newClass, section: e.target.value})} 
+                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green"
+                          >
+                            <option value="">Select</option>
+                            {sections.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                          </select>
+                        ) : (
+                          <input 
+                            type="text" 
+                            value={newClass.section} 
+                            onChange={e => setNewClass({...newClass, section: e.target.value})} 
+                            placeholder="A" 
+                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
+                          />
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Room No</label>
+                        <input 
+                          type="text" 
+                          value={newClass.room_no} 
+                          onChange={e => setNewClass({...newClass, room_no: e.target.value})} 
+                          placeholder="101" 
+                          className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Level</label>
+                      <select 
+                        value={newClass.level} 
+                        onChange={e => setNewClass({...newClass, level: parseInt(e.target.value)})} 
+                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green"
+                      >
+                        <option value={0}>Junior</option>
+                        <option value={1}>Senior</option>
+                      </select>
+                    </div>
+                    <button 
+                      onClick={handleAddClass}
+                      disabled={isProcessing}
+                      className="w-full py-2.5 bg-supabase-green text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all flex items-center justify-center gap-2"
+                    >
+                      {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                      Add Class
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text">Existing Classes</h3>
+                {isFetchingAcademic ? (
+                  <div className="flex justify-center py-10"><Loader2 className="animate-spin text-supabase-green" /></div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {classes.map(cls => (
+                      <div key={cls.id} className="p-4 bg-supabase-panel border border-supabase-border rounded-xl flex items-center justify-between group">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-supabase-green/10 flex items-center justify-center text-supabase-green font-black text-[10px]">
+                            {cls.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-black uppercase tracking-widest">{cls.name}</p>
+                            <p className="text-[9px] text-supabase-muted uppercase tracking-widest">Sec: {cls.section} • Room: {cls.room_no}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => handleDeleteClass(cls.id)} className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Subjects Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-supabase-border">
+              <div className="md:col-span-1 space-y-4">
+                <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text flex items-center gap-2">
+                    <Plus size={14} className="text-supabase-green" />
+                    Add New Subject
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Subject Name</label>
+                      <input 
+                        type="text" 
+                        value={newSubject} 
+                        onChange={e => setNewSubject(e.target.value)} 
+                        placeholder="e.g. Mathematics" 
+                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
+                      />
+                    </div>
+                    <button 
+                      onClick={handleAddSubject}
+                      disabled={isProcessing}
+                      className="w-full py-2.5 bg-supabase-green text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all flex items-center justify-center gap-2"
+                    >
+                      {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                      Add Subject
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text">Existing Subjects</h3>
+                {isFetchingAcademic ? (
+                  <div className="flex justify-center py-10"><Loader2 className="animate-spin text-supabase-green" /></div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {subjects.map(sub => (
+                      <div key={sub.id} className="p-4 bg-supabase-panel border border-supabase-border rounded-xl flex items-center justify-between group">
+                        <div className="flex items-center gap-3">
+                          <BookOpen size={16} className="text-supabase-green" />
+                          <span className="text-[11px] font-black uppercase tracking-widest">{sub.name}</span>
+                        </div>
+                        <button onClick={() => handleDeleteSubject(sub.id)} className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sections Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-supabase-border">
+              <div className="md:col-span-1 space-y-4">
+                <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text flex items-center gap-2">
+                    <Plus size={14} className="text-supabase-green" />
+                    Add New Section
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Section Name</label>
+                      <input 
+                        type="text" 
+                        value={newSection} 
+                        onChange={e => setNewSection(e.target.value)} 
+                        placeholder="e.g. A, B, C" 
+                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
+                      />
+                    </div>
+                    <button 
+                      onClick={handleAddSection}
+                      disabled={isProcessing}
+                      className="w-full py-2.5 bg-supabase-green text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all flex items-center justify-center gap-2"
+                    >
+                      {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                      Add Section
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="md:col-span-2 space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text">Existing Sections</h3>
+                {isFetchingAcademic ? (
+                  <div className="flex justify-center py-10"><Loader2 className="animate-spin text-supabase-green" /></div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {sections.map(sec => (
+                      <div key={sec.id} className="p-4 bg-supabase-panel border border-supabase-border rounded-xl flex items-center justify-between group">
+                        <div className="flex items-center gap-3">
+                          <Layers size={16} className="text-supabase-green" />
+                          <span className="text-[11px] font-black uppercase tracking-widest">{sec.name}</span>
+                        </div>
+                        <button onClick={() => handleDeleteSection(sec.id)} className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
                       </div>
                     ))}
                   </div>

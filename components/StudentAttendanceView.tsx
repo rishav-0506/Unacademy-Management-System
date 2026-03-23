@@ -27,7 +27,7 @@ const StudentAttendanceView: React.FC = () => {
     const fetchClasses = async () => {
       const data = await scheduleService.getClasses();
       setClasses(data);
-      if (data.length > 0) setSelectedClass(data[0].name);
+      if (data.length > 0) setSelectedClass(data[0].name || '');
       setIsLoading(false);
     };
     fetchClasses();
@@ -139,7 +139,7 @@ const StudentAttendanceView: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col bg-supabase-bg animate-in fade-in duration-500">
-      <div className="h-16 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-6 shrink-0 z-10 shadow-sm">
+      <div className="min-h-[4rem] border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shrink-0 z-10 shadow-sm gap-4 sm:gap-0">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-supabase-green/10 rounded-lg">
             <UserCheck className="text-supabase-green" size={20} />
@@ -152,30 +152,33 @@ const StudentAttendanceView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative group">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="relative group flex-1 sm:flex-none">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green transition-colors" />
             <input 
               type="text" 
-              placeholder="Find by name or roll..." 
+              placeholder="Find..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-2 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-48 transition-all"
+              className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-2 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-48 transition-all"
             />
           </div>
           <button 
             onClick={handleBulkPresent}
-            className="px-3 py-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-[10px] font-black uppercase text-supabase-muted hover:text-supabase-green transition-all flex items-center gap-2"
+            className="p-2 sm:px-3 sm:py-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-[10px] font-black uppercase text-supabase-muted hover:text-supabase-green transition-all flex items-center gap-2"
+            title="Mark All Present"
           >
-            Mark All Present
+            <Check size={14} className="sm:hidden" />
+            <span className="hidden sm:inline">Mark All Present</span>
           </button>
           <button 
             onClick={handleSave}
             disabled={isSaving || students.length === 0}
-            className="bg-supabase-green text-black px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] hover:bg-supabase-greenHover transition-all shadow-lg flex items-center gap-2 disabled:opacity-30"
+            className="bg-supabase-green text-black p-2 sm:px-6 sm:py-2 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] hover:bg-supabase-greenHover transition-all shadow-lg flex items-center gap-2 disabled:opacity-30"
+            title="Commit Attendance"
           >
             {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            Commit Attendance
+            <span className="hidden sm:inline">Commit Attendance</span>
           </button>
         </div>
       </div>
@@ -183,26 +186,26 @@ const StudentAttendanceView: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
         <div className="max-w-6xl mx-auto space-y-6">
           
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-supabase-panel p-4 rounded-xl border border-supabase-border">
-             <div className="flex items-center gap-4">
-                <div className="space-y-1">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-supabase-panel p-4 rounded-xl border border-supabase-border">
+             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+                <div className="space-y-1 w-full sm:w-auto">
                     <p className="text-[9px] font-black text-supabase-muted uppercase tracking-widest px-1">Selected Unit</p>
                     <select 
                       value={selectedClass}
                       onChange={(e) => setSelectedClass(e.target.value)}
-                      className="bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none min-w-[150px]"
+                      className="bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none w-full sm:min-w-[150px]"
                     >
                       {classes.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select>
                 </div>
-                <div className="h-8 w-px bg-supabase-border hidden md:block"></div>
+                <div className="h-8 w-px bg-supabase-border hidden sm:block"></div>
                 <div className="flex items-center gap-2 text-supabase-muted">
                     <Calendar size={14} />
                     <span className="text-xs font-bold">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
                 </div>
              </div>
 
-             <div className="flex items-center gap-6">
+             <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto border-t sm:border-t-0 border-supabase-border pt-4 sm:pt-0">
                 <div className="text-center">
                     <p className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Present</p>
                     <p className="text-lg font-black text-supabase-green">{stats.present}</p>
@@ -218,8 +221,8 @@ const StudentAttendanceView: React.FC = () => {
              </div>
           </div>
 
-          <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-hidden shadow-2xl">
-            <table className="w-full text-left">
+          <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-hidden shadow-2xl overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left min-w-[600px]">
               <thead>
                 <tr className="bg-supabase-sidebar/50 text-[10px] uppercase font-black text-supabase-muted tracking-[0.2em] border-b border-supabase-border">
                   <th className="px-6 py-5">Roll No</th>

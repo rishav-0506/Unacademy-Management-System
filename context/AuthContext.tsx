@@ -49,8 +49,9 @@ interface AuthContextType {
   addDesignation: (name: string) => void;
   deleteDesignation: (name: string) => void;
   updateDeptMap: (dept: string, selectedDesignations: string[]) => void;
-  saveSystemConfig: () => Promise<void>;
+  saveSystemConfig: (academicData?: { classes: any[], subjects: any[], sections: any[] }, biometricConfig?: any) => Promise<void>;
   saveSystemRoles: () => Promise<void>;
+  updateUser: (data: { name?: string; email?: string }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -149,12 +150,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const saveSystemConfig = async () => {
+  const saveSystemConfig = async (academicData?: { classes: any[], subjects: any[], sections: any[] }, biometricConfig?: any) => {
     if (supabase) {
       await supabase.from('system_config').upsert({ key: 'system_roles', value: availableRoles }, { onConflict: 'key' });
       await supabase.from('system_config').upsert({ key: 'system_departments', value: departments }, { onConflict: 'key' });
       await supabase.from('system_config').upsert({ key: 'system_designations', value: designations }, { onConflict: 'key' });
       await supabase.from('system_config').upsert({ key: 'dept_designation_map', value: departmentDesignationMap }, { onConflict: 'key' });
+      
+      if (academicData) {
+        await supabase.from('system_config').upsert({ key: 'academic_structure_snapshot', value: academicData }, { onConflict: 'key' });
+      }
+      
+      if (biometricConfig) {
+        await supabase.from('system_config').upsert({ key: 'biometric_api_config', value: biometricConfig }, { onConflict: 'key' });
+      }
     }
   };
 
@@ -234,10 +243,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('unacademy_auth_user');
   };
 
+  const updateUser = async (data: { name?: string; email?: string }) => {
+    if (!user) return;
+    const updatedUser = { ...user, ...data };
+    setUser(updatedUser);
+    localStorage.setItem('unacademy_auth_user', JSON.stringify(updatedUser));
+    
+    if (supabase && user.id !== 'dev-mode-user') {
+      const { error } = await supabase
+        .from('system_users')
+        .update({ 
+          full_name: data.name || user.name,
+          email: data.email || user.email
+        })
+        .eq('id', user.id);
+      if (error) throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, isAuthenticated: !!user, login, logout, isLoading, hasPermission, permissions, availableRoles, departments, designations, departmentDesignationMap,
-      updatePermission, addRole, deleteRole, addDepartment, deleteDepartment, addDesignation, deleteDesignation, updateDeptMap, saveSystemConfig, saveSystemRoles 
+      updatePermission, addRole, deleteRole, addDepartment, deleteDepartment, addDesignation, deleteDesignation, updateDeptMap, saveSystemConfig, saveSystemRoles,
+      updateUser
     }}>
       {children}
     </AuthContext.Provider>

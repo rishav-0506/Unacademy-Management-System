@@ -37,7 +37,7 @@ const AbsentCallView: React.FC = () => {
         const fetchClasses = async () => {
             const data = await scheduleService.getClasses();
             setClasses(data);
-            if (data.length > 0) setSelectedClass(data[0].name);
+            if (data.length > 0) setSelectedClass(data[0].name || '');
             setIsLoading(false);
         };
         fetchClasses();
@@ -133,7 +133,7 @@ const AbsentCallView: React.FC = () => {
 
     return (
         <div className="h-full flex flex-col bg-supabase-bg animate-in fade-in duration-500">
-            <div className="h-16 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-6 shrink-0 z-10 shadow-sm">
+            <div className="min-h-[4rem] border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shrink-0 z-10 shadow-sm gap-4 sm:gap-0">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-supabase-green/10 rounded-lg"><PhoneCall className="text-supabase-green" size={20} /></div>
                     <div>
@@ -141,29 +141,29 @@ const AbsentCallView: React.FC = () => {
                         <p className="text-[10px] text-supabase-muted font-mono uppercase tracking-tighter flex items-center gap-1.5"><Database size={10} /> Contact Matrix Active</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="relative group">
+                <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                    <div className="relative group flex-1 sm:flex-none">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green" />
-                        <input type="text" placeholder="Search by name or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-2 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-64 transition-all" />
+                        <input type="text" placeholder="Search by name or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-2 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-64 transition-all" />
                     </div>
                     <button onClick={fetchAbsentees} className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all shadow-sm"><RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} /></button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 md:p-8">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
                 <div className="max-w-6xl mx-auto space-y-6">
-                    <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-supabase-panel p-4 rounded-xl border border-supabase-border shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <div className="space-y-1">
+                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-supabase-panel p-4 rounded-xl border border-supabase-border shadow-sm">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+                            <div className="space-y-1 w-full sm:w-auto">
                                 <p className="text-[9px] font-black text-supabase-muted uppercase tracking-widest px-1">Selected Unit</p>
-                                <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className="bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none min-w-[150px]">
+                                <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none min-w-[150px]">
                                     {classes.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                                 </select>
                             </div>
-                            <div className="h-8 w-px bg-supabase-border hidden md:block"></div>
+                            <div className="h-8 w-px bg-supabase-border hidden sm:block"></div>
                             <div className="flex items-center gap-2 text-supabase-muted"><Calendar size={14} /><span className="text-xs font-bold">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</span></div>
                         </div>
-                        <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 border-supabase-border pt-4 sm:pt-0">
                             <div className="text-center"><p className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Absentees</p><p className="text-lg font-black text-red-400">{absentees.length}</p></div>
                             <div className="text-center"><p className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Cleared</p><p className="text-lg font-black text-supabase-green">{absentees.filter(a => a.status !== 'pending' && a.status !== 'no_answer').length}</p></div>
                         </div>

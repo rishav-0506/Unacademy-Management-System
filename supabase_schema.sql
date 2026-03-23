@@ -21,14 +21,21 @@ CREATE TABLE IF NOT EXISTS system_users (
 -- 2. Academic Structure
 CREATE TABLE IF NOT EXISTS classes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
     section TEXT DEFAULT 'A',
     room_no TEXT DEFAULT '0',
     level INTEGER DEFAULT 0, -- 0: junior, 1: senior
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(name, section)
 );
 
 CREATE TABLE IF NOT EXISTS subjects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sections (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -174,6 +181,105 @@ CREATE TABLE IF NOT EXISTS user_assignments (
     assigned_classes TEXT[], -- Array of class names
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS registrations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_name TEXT NOT NULL,
+    parent_name TEXT,
+    phone TEXT NOT NULL,
+    email TEXT,
+    class_id UUID REFERENCES classes(id),
+    status TEXT DEFAULT 'pending', -- pending, approved, rejected, admitted
+    registration_fee_status TEXT DEFAULT 'unpaid',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS student_feedback (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID REFERENCES students(id),
+    feedback_text TEXT NOT NULL,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Enable RLS for all tables
+ALTER TABLE system_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teachers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE weekly_schedules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE outreach_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE enquiry_leads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE biometric_devices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE personnel_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payroll_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payroll_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE student_feedback ENABLE ROW LEVEL SECURITY;
+
+-- Create permissive policies for all tables (Public access for demo/internal system)
+DROP POLICY IF EXISTS "Allow all on system_config" ON system_config;
+CREATE POLICY "Allow all on system_config" ON system_config FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on system_users" ON system_users;
+CREATE POLICY "Allow all on system_users" ON system_users FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on classes" ON classes;
+CREATE POLICY "Allow all on classes" ON classes FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on subjects" ON subjects;
+CREATE POLICY "Allow all on subjects" ON subjects FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on sections" ON sections;
+CREATE POLICY "Allow all on sections" ON sections FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on teachers" ON teachers;
+CREATE POLICY "Allow all on teachers" ON teachers FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on students" ON students;
+CREATE POLICY "Allow all on students" ON students FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on weekly_schedules" ON weekly_schedules;
+CREATE POLICY "Allow all on weekly_schedules" ON weekly_schedules FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on attendance_logs" ON attendance_logs;
+CREATE POLICY "Allow all on attendance_logs" ON attendance_logs FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on outreach_logs" ON outreach_logs;
+CREATE POLICY "Allow all on outreach_logs" ON outreach_logs FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on enquiry_leads" ON enquiry_leads;
+CREATE POLICY "Allow all on enquiry_leads" ON enquiry_leads FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on biometric_devices" ON biometric_devices;
+CREATE POLICY "Allow all on biometric_devices" ON biometric_devices FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on employees" ON employees;
+CREATE POLICY "Allow all on employees" ON employees FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on personnel_tasks" ON personnel_tasks;
+CREATE POLICY "Allow all on personnel_tasks" ON personnel_tasks FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on payroll_records" ON payroll_records;
+CREATE POLICY "Allow all on payroll_records" ON payroll_records FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on payroll_settings" ON payroll_settings;
+CREATE POLICY "Allow all on payroll_settings" ON payroll_settings FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on user_assignments" ON user_assignments;
+CREATE POLICY "Allow all on user_assignments" ON user_assignments FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on registrations" ON registrations;
+CREATE POLICY "Allow all on registrations" ON registrations FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on student_feedback" ON student_feedback;
+CREATE POLICY "Allow all on student_feedback" ON student_feedback FOR ALL USING (true) WITH CHECK (true);
 
 -- Initial Data
 INSERT INTO system_users (full_name, email, password, role) 

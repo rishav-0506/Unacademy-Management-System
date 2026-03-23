@@ -22,9 +22,8 @@ const getEnv = (key: string, viteKey?: string) => {
 // Access environment variables with fallbacks
 // 1. Try VITE_ prefixed keys (Standard for Vite/Vercel)
 // 2. Try REACT_APP_ or NEXT_PUBLIC_ prefixed keys
-// 3. Fallback to the hardcoded demo key for instant deployment
-const supabaseUrl = getEnv('SUPABASE_URL') || getEnv('NEXT_PUBLIC_SUPABASE_URL', 'VITE_SUPABASE_URL') || 'https://ypzajzefcmwqdpoumthv.supabase.co';
-const supabaseKey = getEnv('SUPABASE_KEY') || getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwemFqemVmY213cWRwb3VtdGh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMjQzMjcsImV4cCI6MjA4OTYwMDMyN30.m5YavuzkaFQW_hIUrp6q8Y_VtqYk3ZwxZGja9lcN5Ts';
+const supabaseUrl = getEnv('SUPABASE_URL') || getEnv('NEXT_PUBLIC_SUPABASE_URL', 'VITE_SUPABASE_URL');
+const supabaseKey = getEnv('SUPABASE_KEY') || getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'VITE_SUPABASE_ANON_KEY');
 
 // Only create the client if keys are present
 export const supabase = (supabaseUrl && supabaseKey) 

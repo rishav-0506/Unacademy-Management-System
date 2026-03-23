@@ -240,7 +240,7 @@ const EmployeesView: React.FC = () => {
                   {isEditingBanking ? <><X size={14}/> Cancel</> : <><Edit2 size={14}/> Modify Records</>}
                 </button>
              </div>
-             <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-8 max-w-2xl relative overflow-hidden group">
+             <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 sm:p-8 max-w-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-supabase-green/5 rounded-full -mr-16 -mt-16 group-hover:bg-supabase-green/10 transition-all"></div>
                 <div className="space-y-6">
                   {[
@@ -279,8 +279,8 @@ const EmployeesView: React.FC = () => {
                  <button className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all"><Download size={16}/></button>
               </div>
             </div>
-            <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-hidden shadow-xl">
-              <table className="w-full text-left border-collapse">
+            <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-hidden shadow-xl overflow-x-auto scrollbar-hide">
+              <table className="min-w-[600px] w-full text-left border-collapse">
                 <thead className="bg-supabase-sidebar">
                   <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-supabase-muted border-b border-supabase-border">
                     <th className="px-8 py-5">Transaction ID</th>
@@ -340,7 +340,7 @@ const EmployeesView: React.FC = () => {
       default:
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2">
-            <div className="bg-supabase-panel border border-supabase-border rounded-3xl p-8 space-y-6 shadow-lg">
+            <div className="bg-supabase-panel border border-supabase-border rounded-3xl p-6 sm:p-8 space-y-6 shadow-lg">
               <h3 className="text-[10px] font-black uppercase text-supabase-muted tracking-[0.2em] flex items-center gap-2">
                 <Globe size={14} className="text-supabase-green" /> Connectivity & Credentials
               </h3>
@@ -367,7 +367,7 @@ const EmployeesView: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-supabase-panel border border-supabase-border rounded-3xl p-8 space-y-6 shadow-lg">
+            <div className="bg-supabase-panel border border-supabase-border rounded-3xl p-6 sm:p-8 space-y-6 shadow-lg">
               <h3 className="text-[10px] font-black uppercase text-supabase-muted tracking-[0.2em] flex items-center gap-2">
                 <Shield size={14} className="text-supabase-green" /> Governance & Expertise
               </h3>
@@ -402,14 +402,14 @@ const EmployeesView: React.FC = () => {
 
   const renderProfile = (emp: Employee) => (
     <div className="h-full flex flex-col animate-in fade-in slide-in-from-right-4 duration-300">
-      <div className="h-16 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-6 shrink-0">
+      <div className="min-h-[4rem] border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shrink-0 gap-4 sm:gap-0">
         <button 
           onClick={() => { setSelectedEmployeeId(null); setActiveProfileTab('overview'); setIsEditingBanking(false); }}
           className="flex items-center gap-2 text-supabase-muted hover:text-supabase-text transition-colors text-xs font-black uppercase tracking-widest"
         >
           <ArrowLeft size={16} /> Back to Directory
         </button>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             <button 
               onClick={(e) => handleOpenModal(e, emp)}
               className="p-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-colors"
@@ -425,10 +425,10 @@ const EmployeesView: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-8 bg-supabase-bg">
+      <div className="flex-1 overflow-auto p-4 sm:p-8 bg-supabase-bg">
         <div className="max-w-6xl mx-auto space-y-8 pb-12">
           {/* Hero Header */}
-          <div className="bg-supabase-panel border border-supabase-border rounded-3xl p-8 shadow-2xl relative overflow-hidden ring-1 ring-white/5">
+          <div className="bg-supabase-panel border border-supabase-border rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden ring-1 ring-white/5">
             <div className="absolute top-0 right-0 w-64 h-64 bg-supabase-green/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
             
             <div className="relative flex flex-col md:flex-row items-center md:items-start gap-8">
@@ -467,7 +467,7 @@ const EmployeesView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex border-b border-supabase-border gap-10 overflow-x-auto scrollbar-hide px-2">
+          <div className="flex border-b border-supabase-border gap-4 sm:gap-10 overflow-x-auto scrollbar-hide px-2">
              {[
                { id: 'overview', label: 'Overview', icon: User },
                { id: 'document', label: 'Documents', icon: FileText },
@@ -501,7 +501,7 @@ const EmployeesView: React.FC = () => {
         renderProfile(selectedEmployee)
       ) : (
         <>
-          <div className="h-16 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
+          <div className="min-h-[4rem] border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shrink-0 shadow-sm z-10 gap-4 sm:gap-0">
             <div className="flex items-center gap-3">
                  <div className="p-2 bg-supabase-green/10 rounded-lg shadow-inner">
                     <Briefcase className="text-supabase-green" size={20} />
@@ -511,19 +511,20 @@ const EmployeesView: React.FC = () => {
                     <p className="text-[10px] text-supabase-muted mt-1 uppercase tracking-tighter">Human Resource Core</p>
                  </div>
             </div>
-            <div className="flex items-center gap-4">
-                 <div className="relative group">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                 <div className="relative group flex-1 sm:flex-none">
                     <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green transition-colors" />
                     <input 
                         type="text" 
-                        placeholder="Search matrix records..." 
+                        placeholder="Search..." 
                         value={searchTerm} 
                         onChange={(e) => setSearchTerm(e.target.value)} 
-                        className="bg-supabase-sidebar border border-supabase-border rounded-full py-1.5 pl-9 pr-4 text-sm text-supabase-text focus:outline-none focus:border-supabase-green w-72 transition-all shadow-inner" 
+                        className="bg-supabase-sidebar border border-supabase-border rounded-full py-1.5 pl-9 pr-4 text-sm text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-72 transition-all shadow-inner" 
                     />
                 </div>
-                <button onClick={(e) => handleOpenModal(e)} className="bg-supabase-green text-black px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/10 flex items-center gap-2">
-                    <Plus size={14} /> Enroll Person
+                <button onClick={(e) => handleOpenModal(e)} className="bg-supabase-green text-black p-2 sm:px-4 sm:py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/10 flex items-center gap-2 shrink-0" title="Enroll Person">
+                    <Plus size={14} />
+                    <span className="hidden sm:inline">Enroll Person</span>
                 </button>
             </div>
           </div>
@@ -593,21 +594,21 @@ const EmployeesView: React.FC = () => {
       )}
 
       {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-300">
-              <div className="bg-supabase-panel border border-supabase-border rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh] ring-1 ring-white/10 animate-in zoom-in-95 duration-200">
-                  <div className="px-8 py-5 border-b border-supabase-border bg-supabase-sidebar shrink-0">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-2 sm:p-4 animate-in fade-in duration-300">
+              <div className="bg-supabase-panel border border-supabase-border rounded-[1.5rem] sm:rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[95vh] ring-1 ring-white/10 animate-in zoom-in-95 duration-200">
+                  <div className="px-6 sm:px-8 py-4 sm:py-5 border-b border-supabase-border bg-supabase-sidebar shrink-0">
                       <div className="flex items-center justify-between">
-                         <div className="flex items-center gap-4">
+                         <div className="flex items-center gap-3 sm:gap-4">
                             <div className="p-2 bg-supabase-green/10 rounded-xl shadow-inner">
                                 <Briefcase size={18} className="text-supabase-green" />
                             </div>
-                            <h2 className="text-xs font-black text-supabase-text uppercase tracking-[0.3em]">{editingId ? 'Modify Matrix Record' : 'Enroll New Personnel'}</h2>
+                            <h2 className="text-xs font-black text-supabase-text uppercase tracking-[0.3em] truncate">{editingId ? 'Modify Matrix Record' : 'Enroll New Personnel'}</h2>
                          </div>
-                         <button onClick={() => setIsModalOpen(false)} className="text-supabase-muted hover:text-supabase-text transition-colors p-2 hover:bg-supabase-bg rounded-lg"><X size={20} /></button>
+                         <button onClick={() => setIsModalOpen(false)} className="text-supabase-muted hover:text-supabase-text transition-colors p-2 hover:bg-supabase-bg rounded-lg shrink-0"><X size={20} /></button>
                       </div>
                   </div>
                   
-                  <form onSubmit={handleSubmit} className="p-10 space-y-8 overflow-y-auto scrollbar-hide">
+                  <form onSubmit={handleSubmit} className="p-6 sm:p-10 space-y-6 sm:space-y-8 overflow-y-auto scrollbar-hide">
                       <div className="space-y-3">
                           <label className="text-[10px] font-black text-supabase-muted uppercase tracking-[0.2em]">Full Legal Name</label>
                           <div className="relative group">

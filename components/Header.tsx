@@ -7,10 +7,11 @@ import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
   currentView: View;
+  onChangeView: (view: View) => void;
   onMenuToggle?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ currentView, onMenuToggle }) => {
+const Header: React.FC<HeaderProps> = ({ currentView, onChangeView, onMenuToggle }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const { selectedClassId } = useClass();
   const { user, logout } = useAuth();
@@ -51,6 +52,7 @@ const Header: React.FC<HeaderProps> = ({ currentView, onMenuToggle }) => {
       case View.REGISTRATION: return 'Registration';
       case View.ADMISSION: return 'Admission';
       case View.STUDENT_FEEDBACK: return "Student's Feedback";
+      case View.PROFILE: return 'My Profile';
       default: return 'Dashboard';
     }
   };
@@ -73,18 +75,18 @@ const Header: React.FC<HeaderProps> = ({ currentView, onMenuToggle }) => {
   return (
     <header className="h-14 bg-supabase-bg border-b border-supabase-border flex items-center justify-between px-4 sm:px-6 sticky top-0 z-10 shrink-0">
       {/* Breadcrumbs */}
-      <div className="flex items-center text-sm text-supabase-muted overflow-hidden">
+      <div className="flex items-center text-sm text-supabase-muted overflow-hidden min-w-0">
         <button 
             onClick={onMenuToggle}
-            className="mr-3 md:hidden text-supabase-muted hover:text-supabase-text p-1"
+            className="mr-2 sm:mr-3 md:hidden text-supabase-muted hover:text-supabase-text p-1 shrink-0"
         >
             <Menu size={20} />
         </button>
 
-        <span className="hover:text-supabase-text cursor-pointer transition-colors block truncate max-w-[150px] sm:max-w-none">Management System</span>
+        <span className="hover:text-supabase-text cursor-pointer transition-colors block truncate max-w-[100px] sm:max-w-[150px] md:max-w-none shrink-0">Management System</span>
         
-        <ChevronRight size={16} className="mx-2 flex-shrink-0" />
-        <span className="text-supabase-muted font-normal truncate">{getBreadcrumb()}</span>
+        <ChevronRight size={16} className="mx-1 sm:mx-2 flex-shrink-0" />
+        <span className="text-supabase-muted font-normal truncate min-w-0">{getBreadcrumb()}</span>
       </div>
 
       {/* Actions */}
@@ -128,7 +130,13 @@ const Header: React.FC<HeaderProps> = ({ currentView, onMenuToggle }) => {
                     </div>
                     
                     <div className="py-1 border-b border-supabase-border">
-                        <button className="w-full text-left px-4 py-2 text-sm text-supabase-muted hover:bg-supabase-hover hover:text-supabase-text flex items-center gap-3 transition-colors">
+                        <button 
+                            onClick={() => {
+                                onChangeView(View.PROFILE);
+                                setIsUserMenuOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-supabase-muted hover:bg-supabase-hover hover:text-supabase-text flex items-center gap-3 transition-colors"
+                        >
                             <Settings size={16} />
                             Account preferences
                         </button>

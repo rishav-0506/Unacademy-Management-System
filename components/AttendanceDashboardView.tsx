@@ -128,7 +128,7 @@ const AttendanceDashboardView: React.FC = () => {
     return (
         <div className="h-full flex flex-col bg-supabase-bg animate-in fade-in duration-500">
             {/* Header */}
-            <div className="h-16 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-6 shrink-0 z-10 shadow-sm">
+            <div className="min-h-[4rem] border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shrink-0 z-10 shadow-sm gap-4 sm:gap-0">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-supabase-green/10 rounded-lg">
                         <BarChart3 className="text-supabase-green" size={20} />
@@ -141,8 +141,8 @@ const AttendanceDashboardView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="flex bg-supabase-sidebar border border-supabase-border rounded-lg p-1">
+                <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto scrollbar-hide pb-1 sm:pb-0">
+                    <div className="flex bg-supabase-sidebar border border-supabase-border rounded-lg p-1 shrink-0">
                         <button 
                             onClick={() => setContext('students')}
                             className={`flex items-center gap-2 px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${context === 'students' ? 'bg-supabase-green text-black' : 'text-supabase-muted hover:text-supabase-text'}`}
@@ -156,68 +156,69 @@ const AttendanceDashboardView: React.FC = () => {
                             <Briefcase size={12} /> Employees
                         </button>
                     </div>
-                    <div className="h-6 w-px bg-supabase-border mx-2"></div>
-                    <button onClick={fetchData} className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all shadow-sm">
+                    <div className="h-6 w-px bg-supabase-border mx-1 shrink-0"></div>
+                    <button onClick={fetchData} className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all shadow-sm shrink-0">
                         <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-[10px] font-black uppercase text-supabase-muted hover:text-supabase-text transition-all">
-                        <Download size={14} /> Export Report
+                    <button className="flex items-center gap-2 px-3 py-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-[10px] font-black uppercase text-supabase-muted hover:text-supabase-text transition-all whitespace-nowrap shrink-0">
+                        <Download size={14} /> <span className="hidden xs:inline">Export Report</span>
                     </button>
                 </div>
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-supabase-panel border-b border-supabase-border px-6 py-4 flex flex-wrap items-center gap-6 shadow-inner">
-                <div className="relative group flex-1 max-w-xs">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green" />
-                    <input 
-                        type="text" 
-                        placeholder={`Search ${context}...`}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-1.5 text-xs text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
-                    />
-                </div>
+            <div className="bg-supabase-panel border-b border-supabase-border px-4 sm:px-6 py-4 shadow-inner">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                    <div className="relative group">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green" />
+                        <input 
+                            type="text" 
+                            placeholder={`Search ${context}...`}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-1.5 text-xs text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
+                        />
+                    </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 relative group">
-                            <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-supabase-muted" />
-                            <input 
-                                type="date" 
-                                value={startDate} 
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none"
-                            />
+                    <div className="grid grid-cols-2 gap-2 sm:col-span-2">
+                        <div className="space-y-1">
+                            <div className="relative group">
+                                <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-supabase-muted" />
+                                <input 
+                                    type="date" 
+                                    value={startDate} 
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="relative group">
+                                <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-supabase-muted" />
+                                <input 
+                                    type="date" 
+                                    value={endDate} 
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none"
+                                />
+                            </div>
                         </div>
                     </div>
-                    <span className="text-supabase-muted">to</span>
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-2 relative group">
-                            <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-supabase-muted" />
-                            <input 
-                                type="date" 
-                                value={endDate} 
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none"
-                            />
-                        </div>
-                    </div>
-                </div>
 
-                <button 
-                    onClick={fetchData}
-                    className="ml-auto px-6 py-1.5 bg-supabase-green/10 text-supabase-green border border-supabase-green/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-green hover:text-black transition-all"
-                >
-                    Apply Filter Matrix
-                </button>
+                    <button 
+                        onClick={fetchData}
+                        className="w-full px-6 py-1.5 bg-supabase-green/10 text-supabase-green border border-supabase-green/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-green hover:text-black transition-all"
+                    >
+                        Apply Filter Matrix
+                    </button>
+                </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 md:p-8">
                 <div className="max-w-7xl mx-auto space-y-8">
                     
                     {/* KPI Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 shadow-sm group">
                             <p className="text-[10px] font-black text-supabase-muted uppercase tracking-widest mb-3 flex items-center gap-2">
                                 <Activity size={12} className="text-supabase-green" /> Median Regularity
@@ -256,8 +257,8 @@ const AttendanceDashboardView: React.FC = () => {
                     </div>
 
                     {/* Records Table */}
-                    <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/5">
-                        <table className="w-full text-left">
+                    <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-x-auto shadow-2xl ring-1 ring-white/5 scrollbar-hide">
+                        <table className="w-full text-left min-w-[800px]">
                             <thead>
                                 <tr className="bg-supabase-sidebar/50 text-[10px] font-black uppercase text-supabase-muted tracking-[0.25em] border-b border-supabase-border">
                                     <th className="px-6 py-5">Identity Protocol</th>

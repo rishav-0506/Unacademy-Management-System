@@ -116,7 +116,7 @@ const AbsentCallLogView: React.FC = () => {
     return (
         <div className="h-full flex flex-col bg-supabase-bg animate-in fade-in duration-500">
             {/* Header */}
-            <div className="h-16 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-6 shrink-0 z-10 shadow-sm">
+            <div className="min-h-[4rem] border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shrink-0 z-10 shadow-sm gap-4 sm:gap-0">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-supabase-green/10 rounded-lg">
                         <ClipboardList className="text-supabase-green" size={20} />
@@ -129,73 +129,75 @@ const AbsentCallLogView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="relative group">
+                <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                    <div className="relative group flex-1 sm:flex-none">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green" />
                         <input 
                             type="text" 
                             placeholder="Filter by student..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-2 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-48 transition-all"
+                            className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-2 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-48 transition-all"
                         />
                     </div>
                     <button onClick={fetchLogs} className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all shadow-sm">
                         <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-[10px] font-black uppercase text-supabase-muted hover:text-supabase-text transition-all">
-                        <Download size={14} /> Export CSV
+                    <button className="flex items-center gap-2 px-3 py-2 bg-supabase-sidebar border border-supabase-border rounded-lg text-[10px] font-black uppercase text-supabase-muted hover:text-supabase-text transition-all whitespace-nowrap">
+                        <Download size={14} /> <span className="hidden xs:inline">Export CSV</span>
                     </button>
                 </div>
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-supabase-panel border-b border-supabase-border px-6 py-4 flex flex-wrap items-center gap-6 shadow-inner">
-                <div className="space-y-1">
-                    <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest px-1">Class Scope</label>
-                    <select 
-                        value={selectedClass} 
-                        onChange={(e) => setSelectedClass(e.target.value)}
-                        className="bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none min-w-[140px]"
-                    >
-                        <option value="all">Entire Campus</option>
-                        {classes.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    </select>
-                </div>
-
-                <div className="space-y-1">
-                    <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest px-1">Start Interval</label>
-                    <div className="relative group">
-                        <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green" />
-                        <input 
-                            type="date" 
-                            value={startDate} 
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none"
-                        />
+            <div className="bg-supabase-panel border-b border-supabase-border px-4 sm:px-6 py-4 shadow-inner">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest px-1">Class Scope</label>
+                        <select 
+                            value={selectedClass} 
+                            onChange={(e) => setSelectedClass(e.target.value)}
+                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none"
+                        >
+                            <option value="all">Entire Campus</option>
+                            {classes.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </select>
                     </div>
-                </div>
 
-                <div className="space-y-1">
-                    <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest px-1">End Interval</label>
-                    <div className="relative group">
-                        <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green" />
-                        <input 
-                            type="date" 
-                            value={endDate} 
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none"
-                        />
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest px-1">Start Interval</label>
+                        <div className="relative group">
+                            <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green" />
+                            <input 
+                                type="date" 
+                                value={startDate} 
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none"
+                            />
+                        </div>
                     </div>
-                </div>
 
-                <div className="ml-auto self-end pb-1">
-                    <button 
-                        onClick={fetchLogs}
-                        className="px-6 py-1.5 bg-supabase-green/10 text-supabase-green border border-supabase-green/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-green hover:text-black transition-all"
-                    >
-                        Apply Filters
-                    </button>
+                    <div className="space-y-1">
+                        <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest px-1">End Interval</label>
+                        <div className="relative group">
+                            <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green" />
+                            <input 
+                                type="date" 
+                                value={endDate} 
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-supabase-text font-bold focus:border-supabase-green outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex">
+                        <button 
+                            onClick={fetchLogs}
+                            className="w-full px-6 py-1.5 bg-supabase-green/10 text-supabase-green border border-supabase-green/20 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-green hover:text-black transition-all"
+                        >
+                            Apply Filters
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -215,8 +217,8 @@ const AbsentCallLogView: React.FC = () => {
                             <p className="text-xs text-supabase-muted mt-1 italic">No outreach records match the current filter scope.</p>
                         </div>
                     ) : (
-                        <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/5">
-                            <table className="w-full text-left">
+                        <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-x-auto shadow-2xl ring-1 ring-white/5 scrollbar-hide">
+                            <table className="w-full text-left min-w-[800px]">
                                 <thead>
                                     <tr className="bg-supabase-sidebar/50 text-[9px] font-black uppercase text-supabase-muted tracking-[0.25em] border-b border-supabase-border">
                                         <th className="px-6 py-5">Timestamp</th>

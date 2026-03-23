@@ -26,6 +26,13 @@ import EnquiryCallView from './components/EnquiryCallView';
 import EnquiryCallLogView from './components/EnquiryCallLogView';
 import TaskManagementView from './components/TaskManagementView';
 import StudentsView from './components/StudentsView';
+import RegistrationView from './components/RegistrationView';
+import AdmissionView from './components/AdmissionView';
+import StudentFeedbackView from './components/StudentFeedbackView';
+import ProfileView from './components/ProfileView';
+import FeeCollectionView from './components/FeeCollectionView';
+import FeeStructureView from './components/FeeStructureView';
+import BillingView from './components/BillingView';
 import LoginView from './components/LoginView';
 import { View } from './types';
 import { BookOpen, CreditCard, Book, Activity } from 'lucide-react';
@@ -123,25 +130,19 @@ const AppContent: React.FC = () => {
       case View.STUDENTS:
         return <StudentsView />;
       case View.REGISTRATION:
+        return <RegistrationView />;
       case View.ADMISSION:
+        return <AdmissionView />;
       case View.STUDENT_FEEDBACK:
-        return (
-          <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-supabase-bg">
-            <div className="w-20 h-20 bg-supabase-green/10 rounded-3xl flex items-center justify-center text-supabase-green mb-6 animate-pulse">
-              <BookOpen size={40} />
-            </div>
-            <h2 className="text-2xl font-black text-supabase-text uppercase tracking-widest mb-4">ACADEMIC: {currentView.replace('_', ' ')}</h2>
-            <p className="text-sm text-supabase-muted max-w-md leading-relaxed mb-8">
-              This module is currently being synchronized with the academic database. Please check back shortly for full access.
-            </p>
-            <button 
-              onClick={() => setCurrentView(View.DASHBOARD)}
-              className="bg-supabase-green text-black px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/20"
-            >
-              Return to Dashboard
-            </button>
-          </div>
-        );
+        return <StudentFeedbackView />;
+      case View.PROFILE:
+        return <ProfileView />;
+      case View.FEE_COLLECTION:
+        return <FeeCollectionView />;
+      case View.FEE_STRUCTURE:
+        return <FeeStructureView />;
+      case View.BILLING:
+        return <BillingView />;
       case View.BANKING:
       case View.LEDGER:
       case View.WORK_PROGRESS:
@@ -199,6 +200,7 @@ const AppContent: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <Header 
             currentView={currentView} 
+            onChangeView={setCurrentView}
             onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
         />
         <main className="flex-1 overflow-auto scrollbar-hide relative">

@@ -212,23 +212,23 @@ const ClassSchedule: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col bg-supabase-bg text-supabase-text relative">
-      <div className="h-14 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-6 sticky top-0 z-10 shrink-0">
-        <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-                <Calendar className="text-supabase-green" size={20} />
-                <h1 className="text-base font-medium hidden lg:block">Class Schedule</h1>
+      <div className="min-h-[3.5rem] h-auto sm:h-14 border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 sticky top-0 z-10 shrink-0 py-2 sm:py-0 gap-3 sm:gap-0">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 w-full sm:w-auto">
+            <div className="flex items-center gap-2 sm:gap-3">
+                <Calendar className="text-supabase-green shrink-0" size={18} sm:size={20} />
+                <h1 className="text-sm sm:text-base font-medium hidden md:block">Class Schedule</h1>
                 <div className="flex items-center gap-1">
                     <button 
                       onClick={() => setLevelFilter('junior')}
-                      className={`px-2 py-0.5 rounded-l border border-supabase-border text-[10px] font-bold transition-all ${currentLevelFilter === 'junior' ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' : 'bg-supabase-sidebar text-supabase-muted opacity-50'}`}
+                      className={`px-1.5 sm:px-2 py-0.5 rounded-l border border-supabase-border text-[9px] sm:text-[10px] font-bold transition-all ${currentLevelFilter === 'junior' ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' : 'bg-supabase-sidebar text-supabase-muted opacity-50'}`}
                     >
-                        JUNIOR (6-10)
+                        JUNIOR
                     </button>
                     <button 
                       onClick={() => setLevelFilter('senior')}
-                      className={`px-2 py-0.5 rounded-r border border-l-0 border-supabase-border text-[10px] font-bold transition-all ${currentLevelFilter === 'senior' ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' : 'bg-supabase-sidebar text-supabase-muted opacity-50'}`}
+                      className={`px-1.5 sm:px-2 py-0.5 rounded-r border border-l-0 border-supabase-border text-[9px] sm:text-[10px] font-bold transition-all ${currentLevelFilter === 'senior' ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' : 'bg-supabase-sidebar text-supabase-muted opacity-50'}`}
                     >
-                        SENIOR (11-13)
+                        SENIOR
                     </button>
                     {currentLevelFilter !== 'all' && (
                         <button onClick={() => setLevelFilter('all')} className="p-1 text-supabase-muted hover:text-supabase-text"><X size={10} /></button>
@@ -236,41 +236,41 @@ const ClassSchedule: React.FC = () => {
                 </div>
             </div>
             
-            <div className="flex items-center gap-2 text-xs text-supabase-muted border-l border-supabase-border pl-4">
+            <div className="flex items-center gap-2 text-[10px] sm:text-xs text-supabase-muted border-l border-supabase-border pl-3 sm:pl-4">
                 {isSaving ? (
                      <div className="flex items-center gap-1.5 text-supabase-green">
                         <Loader2 size={12} className="animate-spin" />
-                        <span className="hidden sm:inline">Saving to DB...</span>
+                        <span className="hidden xs:inline">Saving...</span>
                     </div>
                 ) : hasUnsavedChanges ? (
                     <div className="flex items-center gap-1.5 text-yellow-500 font-medium">
                         <AlertCircle size={12} />
-                        <span className="hidden sm:inline">Unsaved changes (Draft)</span>
-                        <span className="sm:hidden">Draft</span>
+                        <span className="hidden xs:inline">Unsaved</span>
+                        <span className="xs:hidden">Draft</span>
                     </div>
                 ) : (
                     <div className="flex items-center gap-1.5" title={lastSaved ? `Last synced: ${lastSaved.toLocaleTimeString()}` : ''}>
                         <Cloud size={12} />
-                        <span className="hidden sm:inline">{lastSaved ? 'All saved' : 'Synced'}</span>
+                        <span className="hidden xs:inline">{lastSaved ? 'Saved' : 'Synced'}</span>
                     </div>
                 )}
             </div>
 
-            <div className="relative border-l border-supabase-border pl-4" ref={classDropdownRef}>
+            <div className="relative border-l border-supabase-border pl-3 sm:pl-4" ref={classDropdownRef}>
                 <button 
                     onClick={() => setIsClassMenuOpen(!isClassMenuOpen)}
-                    className="flex flex-col items-start hover:bg-supabase-hover px-2 py-1 rounded transition-colors text-supabase-text group"
+                    className="flex flex-col items-start hover:bg-supabase-hover px-1.5 sm:px-2 py-0.5 sm:py-1 rounded transition-colors text-supabase-text group"
                 >
-                    <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm max-w-[120px] sm:max-w-[200px] truncate">{selectedClassId || 'Select Class'}</span>
-                        <ChevronDown size={14} className="text-supabase-muted group-hover:text-supabase-text" />
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className="font-bold text-xs sm:text-sm max-w-[80px] xs:max-w-[120px] sm:max-w-[200px] truncate">{selectedClassId || 'Select Class'}</span>
+                        <ChevronDown size={12} sm:size={14} className="text-supabase-muted group-hover:text-supabase-text" />
                     </div>
                     {selectedClass && (
-                        <div className="flex items-center gap-2 text-[10px] text-supabase-muted -mt-0.5">
+                        <div className="flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] text-supabase-muted -mt-0.5">
                             <span className={`px-1 rounded ${selectedClass.level === 'senior' ? 'bg-purple-500/10 text-purple-400' : 'bg-blue-500/10 text-blue-400'}`}>
                                 {selectedClass.level?.toUpperCase()}
                             </span>
-                            <span className="flex items-center gap-0.5"><MapPin size={10} /> {selectedClass.room_no}</span>
+                            <span className="flex items-center gap-0.5"><MapPin size={8} sm:size={10} /> {selectedClass.room_no}</span>
                         </div>
                     )}
                 </button>

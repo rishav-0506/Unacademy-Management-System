@@ -74,10 +74,9 @@ export const scheduleService = {
   async getClasses(): Promise<ClassInfo[]> {
     if (!supabase) return [];
     try {
-        // Fetch specific columns including the integer level column
         const { data, error } = await supabase
           .from('classes')
-          .select('id, name, section, room_no, level')
+          .select('*')
           .order('name', { ascending: true });
         
         if (error) {
@@ -85,10 +84,10 @@ export const scheduleService = {
           return [];
         }
         
-        return (data || []).map(item => {
+        return (data || []).map((item: any) => {
           // Map database integer levels: 0 -> junior, 1 -> senior
           let mappedLevel: 'junior' | 'senior' | undefined = undefined;
-          const rawLevel = (item as any).level;
+          const rawLevel = item.level;
           
           if (rawLevel === 0 || rawLevel === '0') mappedLevel = 'junior';
           else if (rawLevel === 1 || rawLevel === '1') mappedLevel = 'senior';
@@ -112,12 +111,14 @@ export const scheduleService = {
         try { 
           // Map string level back to integer for database storage: junior -> 0, senior -> 1
           const dbLevel = level === 'senior' ? 1 : 0;
-          await supabase.from('classes').insert([{ 
-            name: className, 
-            section, 
+          const { error } = await supabase.from('classes').insert([{
+            name: className,
+            section,
             room_no: roomNo,
-            level: dbLevel 
-          }]); 
+            level: dbLevel
+          }]);
+          
+          if (error) throw error;
         } catch (e) {
           console.error("Failed to create class:", e);
         }
@@ -127,8 +128,12 @@ export const scheduleService = {
   async getSubjects(): Promise<{id: string, name: string}[]> {
     if (!supabase) return [];
     try {
-        const { data, error } = await supabase.from('subjects').select('id, name').order('name', { ascending: true });
-        if (error) return [];
+        const { data, error } = await supabase
+          .from('subjects')
+          .select('*')
+          .order('name', { ascending: true });
+        
+        if (error) throw error;
         return data || [];
     } catch { return []; }
   },

@@ -82,8 +82,7 @@ const DashboardView: React.FC = () => {
           if (supabase) {
               const { count: activeCount } = await supabase.from('weekly_schedules').select('*', { count: 'exact', head: true }).eq('status', 'true');
               const { count: draftCount } = await supabase.from('weekly_schedules').select('*', { count: 'exact', head: true }).eq('status', 'false');
-              const { count: totalCount } = await supabase.from('classes').select('*', { count: 'exact', head: true });
-              setStats({ active: activeCount || 0, drafts: draftCount || 0, total: totalCount || 0 });
+              setStats({ active: activeCount || 0, drafts: draftCount || 0, total: infos.length });
           }
       } catch (e) {
           console.error("Dashboard load failed", e);
@@ -104,18 +103,18 @@ const DashboardView: React.FC = () => {
 
   return (
     <div className="p-4 md:p-8 max-w-[1600px] mx-auto space-y-6 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2 shrink-0">
         <div>
-          <h1 className="text-2xl font-semibold text-supabase-text">Dashboard</h1>
-          <p className="text-supabase-muted mt-1">Management Core & Backend Protocols</p>
+          <h1 className="text-xl sm:text-2xl font-black text-supabase-text uppercase tracking-tight">Dashboard</h1>
+          <p className="text-[10px] sm:text-xs text-supabase-muted mt-1 font-bold uppercase tracking-widest">Management Core & Backend Protocols</p>
         </div>
-        <div className="flex gap-3">
-             <span className={`flex items-center gap-2 text-xs px-3 py-1 rounded-full border ${mcpStatus === 'connected' ? 'bg-green-900/30 text-green-400 border-green-900' : 'bg-red-900/30 text-red-400 border-red-900'}`}>
-                {mcpStatus === 'connected' ? <Wifi size={14} /> : <WifiOff size={14} />}
+        <div className="flex flex-wrap gap-2 sm:gap-3">
+             <span className={`flex items-center gap-2 text-[9px] sm:text-xs px-3 py-1.5 rounded-full border ${mcpStatus === 'connected' ? 'bg-green-900/30 text-green-400 border-green-900' : 'bg-red-900/30 text-red-400 border-red-900'} font-bold uppercase tracking-tighter`}>
+                {mcpStatus === 'connected' ? <Wifi size={12} sm:size={14} /> : <WifiOff size={12} sm:size={14} />}
                 {mcpStatus === 'connected' ? 'MCP Protocol Active' : 'MCP Offline'}
              </span>
-             <span className="flex items-center gap-2 text-xs px-3 py-1 rounded-full bg-blue-900/30 text-blue-400 border border-blue-900">
-                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+             <span className="flex items-center gap-2 text-[9px] sm:text-xs px-3 py-1.5 rounded-full bg-blue-900/30 text-blue-400 border border-blue-900 font-bold uppercase tracking-tighter">
+                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-blue-400 animate-pulse"></div>
                 Supabase Realtime
              </span>
         </div>
@@ -135,17 +134,19 @@ const DashboardView: React.FC = () => {
 
       <div className="flex-1 min-h-0 flex flex-col bg-supabase-panel border border-supabase-border rounded-md overflow-hidden">
           <div className="px-6 py-4 border-b border-supabase-border flex flex-col sm:flex-row items-center justify-between bg-supabase-sidebar gap-4">
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                   <Calendar className="text-supabase-green" size={20} />
-                   <h2 className="text-sm font-semibold text-supabase-text uppercase tracking-wide">Live Schedule Explorer</h2>
+              <div className="flex items-center gap-3 self-start sm:self-auto">
+                   <div className="p-1.5 bg-supabase-green/10 rounded-lg">
+                        <Calendar className="text-supabase-green" size={18} />
+                   </div>
+                   <h2 className="text-xs font-black text-supabase-text uppercase tracking-[0.2em]">Live Schedule Explorer</h2>
               </div>
-              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-                  {publishedSchedules.length === 0 && !loading && <span className="text-xs text-supabase-muted italic">No active schedules found</span>}
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-start sm:justify-end">
+                  {publishedSchedules.length === 0 && !loading && <span className="text-[10px] text-supabase-muted italic uppercase font-bold tracking-tighter">No active signals found</span>}
                   {publishedSchedules.map(sch => (
                       <button
                         key={sch.id}
                         onClick={() => setSelectedScheduleId(sch.id)}
-                        className={`px-3 py-1.5 rounded text-xs font-medium transition-colors border ${selectedScheduleId === sch.id ? 'bg-supabase-green/10 text-supabase-green border-supabase-green/30' : 'text-supabase-muted border-transparent hover:bg-supabase-hover hover:text-supabase-text'}`}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border shrink-0 ${selectedScheduleId === sch.id ? 'bg-supabase-green/10 text-supabase-green border-supabase-green/30 shadow-sm' : 'text-supabase-muted border-transparent hover:bg-supabase-hover hover:text-supabase-text'}`}
                       >
                           {sch.class}
                       </button>

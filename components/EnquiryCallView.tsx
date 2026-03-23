@@ -353,10 +353,10 @@ const EnquiryCallView: React.FC = () => {
     return (
         <div className="h-full flex flex-col bg-supabase-bg animate-in fade-in duration-500 font-sans overflow-hidden">
             {/* Header */}
-            <div className="h-16 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-6 shrink-0 z-10 shadow-sm">
+            <div className="min-h-[4rem] h-auto sm:h-16 border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 gap-3 sm:gap-0 shrink-0 z-10 shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-supabase-green/10 rounded-lg shadow-inner">
-                        <MessageSquarePlus className="text-supabase-green" size={20} />
+                        <MessageSquarePlus className="text-supabase-green" size={18} sm:size={20} />
                     </div>
                     <div>
                         <h1 className="text-sm font-bold text-supabase-text uppercase tracking-widest leading-none">Lead Engagement Center</h1>
@@ -366,32 +366,34 @@ const EnquiryCallView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="relative group">
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                    <div className="relative group flex-1 sm:flex-none">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green transition-all" />
                         <input 
                             type="text" 
                             placeholder="Search records..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-2 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-64 transition-all shadow-inner"
+                            className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-2 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-64 transition-all shadow-inner"
                         />
                     </div>
-                    <button onClick={fetchLeads} className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all shadow-sm">
-                        <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
-                    </button>
-                    <div className="flex bg-supabase-sidebar border border-supabase-border rounded-lg p-0.5 shadow-sm">
-                        <button onClick={() => setIsInsertModalOpen(true)} className="bg-supabase-green text-black px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all flex items-center gap-2"><UserPlus size={14} /> Insert</button>
-                        <button onClick={() => { setIsBulkModalOpen(true); setBulkData(''); }} className="text-supabase-muted hover:text-supabase-text px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"><Layers size={14} /> Bulk</button>
+                    <div className="flex items-center gap-2">
+                        <button onClick={fetchLeads} className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all shadow-sm">
+                            <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+                        </button>
+                        <div className="flex bg-supabase-sidebar border border-supabase-border rounded-lg p-0.5 shadow-sm">
+                            <button onClick={() => setIsInsertModalOpen(true)} className="bg-supabase-green text-black px-3 sm:px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all flex items-center gap-2"><UserPlus size={14} /> <span className="hidden xs:inline">Insert</span></button>
+                            <button onClick={() => { setIsBulkModalOpen(true); setBulkData(''); }} className="text-supabase-muted hover:text-supabase-text px-3 sm:px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"><Layers size={14} /> <span className="hidden xs:inline">Bulk</span></button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-supabase-panel border-b border-supabase-border px-6 py-3 flex items-center justify-between shadow-inner">
-                <div className="flex items-center gap-2">
-                    <span className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Protocol Filter</span>
-                    <div className="flex bg-supabase-sidebar border border-supabase-border rounded-lg p-0.5 shadow-inner">
+            <div className="bg-supabase-panel border-b border-supabase-border px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 shadow-inner">
+                <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto scrollbar-hide">
+                    <span className="text-[9px] font-black text-supabase-muted uppercase tracking-widest shrink-0">Protocol Filter</span>
+                    <div className="flex bg-supabase-sidebar border border-supabase-border rounded-lg p-0.5 shadow-inner shrink-0">
                         {['all', 'Hot', 'Warm', 'Cold'].map(t => (
                             <button 
                                 key={t}
@@ -409,7 +411,7 @@ const EnquiryCallView: React.FC = () => {
             </div>
 
             {/* Leads Grid */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar relative">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 custom-scrollbar relative">
                 <div className="max-w-7xl mx-auto">
                     {isLoading ? (
                         <div className="py-32 flex flex-col items-center justify-center gap-4 text-supabase-muted">
@@ -650,7 +652,7 @@ const EnquiryCallView: React.FC = () => {
                                 <div className="flex justify-between mb-4"><span className="text-[10px] font-black uppercase text-supabase-muted">Payload Matrix</span></div>
                                 <textarea autoFocus value={bulkData} onChange={e => setBulkData(e.target.value)} placeholder="Paste data array..." className="flex-1 bg-supabase-bg border border-supabase-border rounded-2xl p-6 text-xs font-mono text-supabase-text outline-none resize-none" />
                             </div>
-                            <div className="w-80 space-y-6">
+                            <div className="w-full md:w-80 space-y-6">
                                 <button onClick={handleDownloadSampleCSV} className="w-full text-left px-4 py-3 bg-supabase-sidebar border border-supabase-border rounded-xl text-[10px] font-black uppercase text-supabase-muted hover:text-supabase-green transition-all flex items-center gap-2"><Download size={14}/> Template.csv</button>
                                 <div onClick={() => fileInputRef.current?.click()} className="h-40 border-2 border-dashed border-supabase-border rounded-2xl flex flex-col items-center justify-center text-supabase-muted hover:border-supabase-green cursor-pointer"><UploadCloud size={32} /><span className="text-[9px] font-black uppercase mt-2">Upload CSV</span><input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileUpload} /></div>
                                 <button onClick={handleBulkInsert} disabled={isSubmitting || !bulkData.trim()} className="w-full bg-supabase-green text-black py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.25em] hover:bg-supabase-greenHover disabled:opacity-30 transition-all">{isSubmitting ? 'Syncing Cluster...' : 'Commit Batch'}</button>

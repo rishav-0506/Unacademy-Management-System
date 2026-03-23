@@ -127,38 +127,39 @@ const PayrollView: React.FC = () => {
   return (
     <div className="h-full flex flex-col bg-supabase-bg font-sans animate-in fade-in duration-500">
       {/* Header */}
-      <div className="h-20 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-8 shrink-0 shadow-sm z-10">
+      <div className="min-h-[5rem] h-auto sm:h-20 border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-8 py-4 sm:py-0 shrink-0 shadow-sm z-10 gap-4 sm:gap-0">
         <div className="flex items-center gap-4">
-          <div className="p-3 bg-supabase-green/10 rounded-xl text-supabase-green border border-supabase-green/20 shadow-inner">
-            <Wallet size={24} />
+          <div className="p-2 sm:p-3 bg-supabase-green/10 rounded-xl text-supabase-green border border-supabase-green/20 shadow-inner">
+            <Wallet size={20} className="sm:w-6 sm:h-6" />
           </div>
           <div>
-            <h1 className="text-lg font-black text-supabase-text uppercase tracking-widest leading-none">Financial Ledger</h1>
-            <p className="text-[10px] text-supabase-muted mt-1 uppercase tracking-widest flex items-center gap-2">
+            <h1 className="text-sm sm:text-lg font-black text-supabase-text uppercase tracking-widest leading-none">Financial Ledger</h1>
+            <p className="text-[9px] sm:text-[10px] text-supabase-muted mt-1 uppercase tracking-widest flex items-center gap-2">
               <ShieldCheck size={12} className="text-supabase-green" /> 
               Authorized Personnel Payroll Node
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green transition-colors" size={16} />
+        <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+          <div className="relative group flex-1 sm:flex-none">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green transition-colors" size={14} />
             <input 
               type="text" 
-              placeholder="Search payroll records..." 
+              placeholder="Search..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-supabase-sidebar border border-supabase-border rounded-full py-2 pl-10 pr-4 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-64 shadow-inner" 
+              className="bg-supabase-sidebar border border-supabase-border rounded-full py-2 pl-9 pr-4 text-[10px] sm:text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-64 shadow-inner transition-all" 
             />
           </div>
           <button 
             onClick={handleBulkProcess}
             disabled={isProcessingBulk || totals.pending === 0}
-            className="bg-supabase-green text-black px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/10 flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="bg-supabase-green text-black px-4 sm:px-6 py-2 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/10 flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
           >
             {isProcessingBulk ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
-            Disburse Batch
+            <span className="hidden sm:inline">Disburse Batch</span>
+            <span className="sm:hidden">Disburse</span>
           </button>
         </div>
       </div>

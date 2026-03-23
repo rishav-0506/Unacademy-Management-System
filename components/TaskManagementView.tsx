@@ -120,7 +120,7 @@ const TaskManagementView: React.FC = () => {
     return (
         <div className="h-full flex flex-col bg-supabase-bg animate-in fade-in duration-500 relative">
             {/* Header */}
-            <div className="h-16 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-6 shrink-0 z-10 shadow-sm">
+            <div className="min-h-[4rem] border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shrink-0 z-10 shadow-sm gap-4 sm:gap-0">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-supabase-green/10 rounded-lg shadow-inner">
                         <ListTodo className="text-supabase-green" size={20} />
@@ -133,26 +133,27 @@ const TaskManagementView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="relative group">
+                <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                    <div className="relative group flex-1 sm:flex-none">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green transition-all" />
                         <input 
                             type="text" 
                             placeholder="Search personnel..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-2 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-48 transition-all shadow-inner"
+                            className="bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-2 text-xs text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-48 transition-all shadow-inner"
                         />
                     </div>
-                    <button onClick={fetchEmployees} className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all shadow-sm">
+                    <button onClick={fetchEmployees} className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all shadow-sm shrink-0">
                         <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
                     </button>
                     <button 
                         onClick={() => openAssignModal()}
-                        className="bg-supabase-green text-black px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/20 flex items-center gap-2 group ring-1 ring-white/10"
+                        className="bg-supabase-green text-black px-4 sm:px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/20 flex items-center gap-2 group ring-1 ring-white/10 whitespace-nowrap shrink-0"
                     >
                         <Zap size={14} className="group-hover:fill-current" />
-                        Create Global Task
+                        <span className="hidden xs:inline">Create Global Task</span>
+                        <span className="xs:hidden">Global Task</span>
                     </button>
                 </div>
             </div>
@@ -248,26 +249,26 @@ const TaskManagementView: React.FC = () => {
 
             {/* Task Creation Modal */}
             {isTaskModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-                    <div className="bg-supabase-panel border border-supabase-border rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col ring-1 ring-white/10 animate-in zoom-in-95 duration-200">
-                        <div className="px-8 py-5 border-b border-supabase-border bg-supabase-sidebar flex justify-between items-center shrink-0">
-                            <div className="flex items-center gap-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-supabase-panel border border-supabase-border rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-lg max-h-[95vh] overflow-hidden flex flex-col ring-1 ring-white/10 animate-in zoom-in-95 duration-200">
+                        <div className="px-6 sm:px-8 py-4 sm:py-5 border-b border-supabase-border bg-supabase-sidebar flex justify-between items-center shrink-0">
+                            <div className="flex items-center gap-3 sm:gap-4">
                                 <div className="p-2 bg-supabase-green/10 rounded-xl text-supabase-green shadow-inner">
                                     <Zap size={18} />
                                 </div>
-                                <div>
-                                    <h2 className="text-xs font-black text-supabase-text uppercase tracking-[0.3em]">Protocol: Task Creator</h2>
-                                    <p className="text-[10px] text-supabase-muted font-bold uppercase mt-1">
+                                <div className="min-w-0">
+                                    <h2 className="text-xs font-black text-supabase-text uppercase tracking-[0.3em] truncate">Protocol: Task Creator</h2>
+                                    <p className="text-[10px] text-supabase-muted font-bold uppercase mt-1 truncate">
                                         {taskForm.assigned_to 
                                             ? `Direct Assignment: ${employees.find(e => e.id === taskForm.assigned_to)?.full_name}`
                                             : 'Global Broadcast Mode'}
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={() => setIsTaskModalOpen(false)} className="text-supabase-muted hover:text-supabase-text p-2 hover:bg-supabase-bg rounded-lg transition-colors"><X size={20} /></button>
+                            <button onClick={() => setIsTaskModalOpen(false)} className="text-supabase-muted hover:text-supabase-text p-2 hover:bg-supabase-bg rounded-lg transition-colors shrink-0"><X size={20} /></button>
                         </div>
 
-                        <form onSubmit={handleCommitTask} className="p-10 space-y-6 overflow-y-auto custom-scrollbar">
+                        <form onSubmit={handleCommitTask} className="p-6 sm:p-10 space-y-6 overflow-y-auto custom-scrollbar">
                             {!taskForm.assigned_to && (
                                 <div className="space-y-2 group">
                                     <label className="text-[10px] font-black text-supabase-muted uppercase tracking-widest flex items-center gap-2 group-focus-within:text-supabase-green transition-colors">
@@ -322,7 +323,7 @@ const TaskManagementView: React.FC = () => {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black text-supabase-muted uppercase tracking-widest flex items-center gap-2">
                                         <Zap size={10} /> Priority Intensity

@@ -146,26 +146,26 @@ const TeachersView: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col bg-supabase-bg">
-      <div className="h-16 border-b border-supabase-border bg-supabase-panel flex items-center justify-between px-6">
+      <div className="min-h-[4rem] h-auto sm:h-16 border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 gap-3 sm:gap-0 shrink-0">
         <div className="flex items-center gap-3">
              <GraduationCap className="text-supabase-green" size={24} />
              <div>
-                <h1 className="text-lg font-medium text-supabase-text leading-none">Teachers</h1>
-                <p className="text-xs text-supabase-muted mt-1">Manage faculty directory</p>
+                <h1 className="text-base sm:text-lg font-medium text-supabase-text leading-none">Teachers</h1>
+                <p className="text-[10px] sm:text-xs text-supabase-muted mt-1">Manage faculty directory</p>
              </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
              <div className="flex bg-supabase-sidebar border border-supabase-border rounded-md p-0.5">
                 <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-supabase-panel shadow-sm text-supabase-text' : 'text-supabase-muted hover:text-supabase-text'}`}><LayoutGrid size={16} /></button>
                 <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-supabase-panel shadow-sm text-supabase-text' : 'text-supabase-muted hover:text-supabase-text'}`}><List size={16} /></button>
              </div>
-             <div className="relative group">
+             <div className="relative group flex-1 sm:flex-none">
                 <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-text" />
-                <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-supabase-sidebar border border-supabase-border rounded-full py-1.5 pl-9 pr-4 text-sm text-supabase-text focus:outline-none focus:border-supabase-green w-64" />
+                <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-supabase-sidebar border border-supabase-border rounded-full py-1.5 pl-9 pr-4 text-sm text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-64" />
             </div>
             {canManage && (
-              <button onClick={() => setIsModalOpen(true)} className="bg-supabase-green text-black px-4 py-2 rounded-md text-sm font-medium hover:bg-supabase-greenHover flex items-center gap-2">
-                <Plus size={16} />Add Teacher
+              <button onClick={() => setIsModalOpen(true)} className="bg-supabase-green text-black px-3 sm:px-4 py-2 rounded-md text-sm font-medium hover:bg-supabase-greenHover flex items-center gap-2">
+                <Plus size={16} /><span className="hidden xs:inline">Add Teacher</span><span className="xs:hidden">Add</span>
               </button>
             )}
         </div>
@@ -210,8 +210,8 @@ const TeachersView: React.FC = () => {
                         ))}
                     </div>
                 ) : (
-                    <div className="bg-supabase-panel border border-supabase-border rounded-md overflow-hidden">
-                         <table className="w-full text-left border-collapse">
+                    <div className="bg-supabase-panel border border-supabase-border rounded-md overflow-hidden overflow-x-auto scrollbar-hide">
+                         <table className="w-full text-left border-collapse min-w-[600px]">
                             <thead>
                                 <tr className="bg-supabase-sidebar">
                                     <th className="px-6 py-3 text-xs font-medium text-supabase-muted uppercase">Status</th>
