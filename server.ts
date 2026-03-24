@@ -3,7 +3,7 @@ import cors from "cors";
 import axios from "axios";
 import path from "path";
 import { fileURLToPath } from "url";
-import { biometricServerService } from "../services/biometricServerService.js";
+import { biometricServerService } from "./services/biometricServerService";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
