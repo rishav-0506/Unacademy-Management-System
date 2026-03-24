@@ -65,7 +65,8 @@ class BiometricService {
     });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Request failed with status ${response.status}`);
+      const errorMessage = typeof errorData === 'string' ? errorData : (errorData.error || `Request failed with status ${response.status}`);
+      throw new Error(errorMessage);
     }
     return response;
   }
@@ -105,22 +106,104 @@ class BiometricService {
     }
   }
 
-  async fetchLogs(deviceKey: string): Promise<BiometricLog[]> {
+  async getDevices(): Promise<any[]> {
     await this.initialize();
     if (!this.token || !this.baseUrl) return [];
     try {
+      const response = await this.proxyFetch(`${this.baseUrl}/api/Device`);
+      const devices = await response.json();
+      return Array.isArray(devices) ? devices.map((d: any) => ({
+        id: String(d.Id || d.id),
+        name: d.DeviceName || d.deviceName || 'Unnamed Device',
+        cloud_key: d.DeviceKey || d.SerialNumber || String(d.Id),
+        location: d.Location || d.location || 'Unknown',
+        status: d.Status === 1 ? 'Online' : 'Offline',
+        last_sync: d.LastActivityTime || d.lastActivityTime
+      })) : [];
+    } catch (e) {
+      console.error("Fetch devices from API failed:", e);
+      return [];
+    }
+  }
+
+  async fetchLogs(deviceKey: string): Promise<BiometricLog[]> {
+    await this.initialize();
+    if (!this.token || !this.baseUrl) return [];
+    
+    try {
       // 1. Trigger fetch command on the cloud server
-      // Use DeviceCommand (capitalized) to match uploadUser
-      await this.proxyFetch(`${this.baseUrl}/api/DeviceCommand?commandType=FetchAllLogs`, {
-        method: 'POST',
-        body: [deviceKey]
+      try {
+        await this.proxyFetch(`${this.baseUrl}/api/DeviceCommand?commandType=FetchAllLogs`, {
+          method: 'POST',
+          body: [deviceKey]
+        });
+      } catch (e: any) {
+        if (!e.message?.includes('already in progress')) {
+          console.warn("FetchAllLogs command trigger failed:", e.message);
+        }
+      }
+
+      // 2. Retrieve all logs from the cloud database using a wide date range
+      const fromDate = '2000-01-01T00:00:00';
+      const toDate = new Date().toISOString();
+      
+      const endpoints = [
+        `${this.baseUrl}/api/DeviceLog/GetAllLogsByDate?FromDate=${fromDate}&ToDate=${toDate}`,
+        `${this.baseUrl}/api/DeviceLog/GetLogsByDate?FromDate=${fromDate}&ToDate=${toDate}`,
+        `${this.baseUrl}/api/DeviceLog/GetLogs?FromDate=${fromDate}&ToDate=${toDate}`,
+        `${this.baseUrl}/api/DeviceLog/GetAll?FromDate=${fromDate}&ToDate=${toDate}`,
+        `${this.baseUrl}/api/Log/GetLogsByDate?FromDate=${fromDate}&ToDate=${toDate}`,
+        `${this.baseUrl}/api/Log/GetAllLogsByDate?FromDate=${fromDate}&ToDate=${toDate}`,
+        `${this.baseUrl}/api/Log/GetLogs?FromDate=${fromDate}&ToDate=${toDate}`,
+        `${this.baseUrl}/api/Log/GetAll?FromDate=${fromDate}&ToDate=${toDate}`
+      ];
+
+      let lastError: any = null;
+      let allLogs: any[] = [];
+      
+      for (const url of endpoints) {
+        try {
+          console.log(`Attempting to fetch logs from: ${url}`);
+          const response = await this.proxyFetch(url);
+          const data = await response.json();
+          
+          if (Array.isArray(data)) {
+            allLogs = data;
+            break;
+          } else if (data && typeof data === 'object') {
+            const possibleList = data.data || data.items || data.logs || data.results || data.Data || data.Logs;
+            if (Array.isArray(possibleList)) {
+              allLogs = possibleList;
+              break;
+            }
+          }
+        } catch (error: any) {
+          lastError = error;
+          if (error.message?.includes('404')) {
+            console.warn(`Log endpoint ${url} not found (404), trying next fallback...`);
+            continue;
+          }
+          throw error;
+        }
+      }
+      
+      // 3. Filter logs to only include those from the requested device
+      const filteredLogs = allLogs.filter((l: any) => {
+        const logDeviceKey = l.DeviceKey || l.deviceKey || l.SerialNumber || l.serialNumber;
+        return logDeviceKey === deviceKey;
       });
 
-      // 2. Retrieve logs from the cloud database
-      const today = new Date().toISOString().split('T')[0];
-      const logsResponse = await this.proxyFetch(`${this.baseUrl}/api/DeviceLog/GetAllLogsByDate?FromDate=${today}&ToDate=${today}`);
-      const logs = await logsResponse.json();
-      return Array.isArray(logs) ? logs : [];
+      return filteredLogs.map((l: any) => ({
+        id: l.Id || l.id,
+        deviceKey: l.DeviceKey || l.deviceKey,
+        deviceName: l.DeviceName || l.deviceName,
+        userId: l.UserId || l.userId,
+        userName: l.UserName || l.userName,
+        ioTime: l.IOTime || l.ioTime,
+        ioMode: l.IOMode || l.ioMode,
+        verifyMode: l.VerifyMode || l.verifyMode,
+        workCode: l.WorkCode || l.workCode
+      }));
     } catch (e) {
       console.error("Fetch logs failed:", e);
       return [];
@@ -130,10 +213,59 @@ class BiometricService {
   async fetchUsersFromDevice(deviceKey: string): Promise<any[]> {
     await this.initialize();
     if (!this.token || !this.baseUrl) return [];
+    
+    const encodedKey = encodeURIComponent(deviceKey);
+    const endpoints = [
+      `${this.baseUrl}/api/Device/GetAllRegisteredUsers?deviceKey=${encodedKey}`,
+      `${this.baseUrl}/api/Device/GetRegisteredUsers?deviceKey=${encodedKey}`,
+      `${this.baseUrl}/api/Device/GetUsers?deviceKey=${encodedKey}`,
+      `${this.baseUrl}/api/Device/GetAll?deviceKey=${encodedKey}`,
+      `${this.baseUrl}/api/User/GetAllUsers?deviceKey=${encodedKey}`,
+      `${this.baseUrl}/api/User/GetUsers?deviceKey=${encodedKey}`,
+      `${this.baseUrl}/api/User/GetAll?deviceKey=${encodedKey}`
+    ];
+
+    let lastError: any = null;
+    let users: any[] = [];
+
+    for (const url of endpoints) {
+      try {
+        console.log(`Attempting to fetch users from: ${url}`);
+        const response = await this.proxyFetch(url);
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+          users = data;
+          break;
+        } else if (data && typeof data === 'object') {
+          const possibleList = data.data || data.items || data.users || data.results || data.Data || data.Users;
+          if (Array.isArray(possibleList)) {
+            users = possibleList;
+            break;
+          }
+        }
+      } catch (e: any) {
+        lastError = e;
+        if (e.message?.includes('404')) {
+          console.warn(`User endpoint ${url} not found (404), trying next fallback...`);
+          continue;
+        }
+        throw e;
+      }
+    }
+
     try {
-      const response = await this.proxyFetch(`${this.baseUrl}/api/Device/GetAllRegisteredUsers?deviceKey=${deviceKey}`);
-      const users = await response.json();
-      return Array.isArray(users) ? users : [];
+      return users.map((u: any) => ({
+        userId: u.UserId || u.userId,
+        userName: u.UserName || u.userName,
+        cardNumber: u.CardNumber || u.cardNumber,
+        password: u.Password || u.password,
+        accessLevel: u.AccessLevel || u.accessLevel,
+        privilege: u.Privilege || u.privilege,
+        isActive: u.IsActive !== undefined ? u.IsActive : u.isActive,
+        fpCount: u.FPCount !== undefined ? u.FPCount : u.fpCount,
+        faceCount: u.FaceCount !== undefined ? u.FaceCount : u.faceCount
+      }));
     } catch (e) {
       console.error("Fetch users from device failed:", e);
       return [];
@@ -156,8 +288,18 @@ class BiometricService {
 
     if (attendanceData.length === 0) return;
 
+    // Deduplicate by student_id and date to avoid "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    const uniqueAttendanceData = Array.from(
+      attendanceData.reduce((acc, current) => {
+        const key = `${current.student_id}-${current.date}`;
+        // Keep the latest one if there are multiple logs for the same day
+        acc.set(key, current);
+        return acc;
+      }, new Map<string, any>()).values()
+    );
+
     try {
-      const { error } = await supabase.from('attendance_logs').upsert(attendanceData, { onConflict: 'student_id,date' });
+      const { error } = await supabase.from('attendance_logs').upsert(uniqueAttendanceData, { onConflict: 'student_id,date' });
       if (error) throw error;
     } catch (e) {
       console.error("Sync to Supabase failed:", e);
@@ -195,12 +337,14 @@ class BiometricService {
     await this.initialize();
     if (!this.token || !this.baseUrl) return;
     try {
-      // The error "The JSON value could not be converted to System.String[]" 
-      // indicates the body must be an array of strings (device keys).
-      // The user ID is likely expected in the query string.
-      await this.proxyFetch(`${this.baseUrl}/api/DeviceCommand?commandType=DeleteUser&userIds=${userId}`, {
+      // Correct endpoint per OpenAPI spec: POST /api/DeviceCommand/DeleteUser
+      // Takes an array of DeleteUserDTO: { UserId: string, DeviceKeys: string[] }
+      await this.proxyFetch(`${this.baseUrl}/api/DeviceCommand/DeleteUser`, {
         method: 'POST',
-        body: [deviceKey]
+        body: [{
+          UserId: userId,
+          DeviceKeys: [deviceKey]
+        }]
       });
     } catch (e) {
       console.error("Delete user failed:", e);
@@ -211,13 +355,125 @@ class BiometricService {
     await this.initialize();
     if (!this.token || !this.baseUrl) return [];
     try {
-      const response = await this.proxyFetch(`${this.baseUrl}/api/DeviceCommand/GetAllCommands?deviceKey=${deviceKey}`);
-      const commands = await response.json();
-      return Array.isArray(commands) ? commands : [];
+      const encodedKey = encodeURIComponent(deviceKey);
+      const endpoints = [
+        `${this.baseUrl}/api/DeviceCommand/GetAllCommands?deviceKey=${encodedKey}`,
+        `${this.baseUrl}/api/DeviceCommand/GetCommands?deviceKey=${encodedKey}`,
+        `${this.baseUrl}/api/DeviceCommand/GetDeviceCommands?deviceKey=${encodedKey}`,
+        `${this.baseUrl}/api/DeviceCommand/GetList?deviceKey=${encodedKey}`,
+        `${this.baseUrl}/api/DeviceCommand/GetAll?deviceKey=${encodedKey}`,
+        `${this.baseUrl}/api/DeviceCommand/${encodedKey}`,
+        `${this.baseUrl}/api/DeviceCommand?deviceKey=${encodedKey}`,
+        `${this.baseUrl}/api/DeviceCommand`,
+        `${this.baseUrl}/api/Command/GetAllCommands?deviceKey=${encodedKey}`,
+        `${this.baseUrl}/api/Command/GetCommands?deviceKey=${encodedKey}`,
+        `${this.baseUrl}/api/Command/GetList?deviceKey=${encodedKey}`,
+        `${this.baseUrl}/api/Command/GetAll?deviceKey=${encodedKey}`,
+        `${this.baseUrl}/api/Command/${encodedKey}`,
+        `${this.baseUrl}/api/Command`
+      ];
+
+      let allCommands: any[] = [];
+      let foundList = false;
+
+      for (const url of endpoints) {
+        try {
+          console.log(`Attempting to fetch commands from: ${url}`);
+          const response = await this.proxyFetch(url);
+          const data = await response.json();
+          
+          if (Array.isArray(data)) {
+            allCommands = data;
+            if (allCommands.length > 0) {
+              foundList = true;
+              break;
+            }
+          } else if (data && typeof data === 'object' && !Array.isArray(data)) {
+            // Check if it's a wrapper object with a list inside
+            const possibleList = data.data || data.items || data.commands || data.results || data.Commands || data.Data;
+            if (Array.isArray(possibleList)) {
+              allCommands = possibleList;
+              foundList = true;
+              break;
+            }
+            
+            // If it's a single object, wrap it but keep looking for a list if possible
+            allCommands = [data];
+            // If the URL specifically targeted this device, we might only get one
+            if (url.includes(encodedKey) && !url.includes('GetAll')) {
+              // We'll keep this one but continue to see if a list endpoint exists
+              continue; 
+            }
+          }
+        } catch (e: any) {
+          if (e.message?.includes('404')) continue;
+          console.warn(`Command fetch failed for ${url}:`, e.message);
+        }
+      }
+      
+      // Filter by device key if we fetched a global list or multiple devices
+      if (allCommands.length > 0) {
+          const firstCmd = allCommands[0];
+          const hasKeyField = firstCmd.DeviceKey || firstCmd.deviceKey || firstCmd.SerialNumber || firstCmd.serialNumber;
+          
+          if (hasKeyField) {
+            allCommands = allCommands.filter((c: any) => {
+              const cmdKey = c.DeviceKey || c.deviceKey || c.SerialNumber || c.serialNumber || c.device_key;
+              return !deviceKey || String(cmdKey) === String(deviceKey);
+            });
+          }
+      }
+
+      // Sort by create time descending if available
+      allCommands.sort((a, b) => {
+        const timeA = new Date(a.CreatedOn || a.CreateTime || a.createTime || 0).getTime();
+        const timeB = new Date(b.CreatedOn || b.CreateTime || b.createTime || 0).getTime();
+        return timeB - timeA;
+      });
+
+      return allCommands.map((c: any) => ({
+        id: c.Id || c.id,
+        commandType: c.CommandType || c.commandType,
+        status: c.CommandStatus || c.Status || c.status,
+        createTime: c.CreatedOn || c.CreateTime || c.createTime,
+        responseTime: c.UpdatedOn || c.ResponseTime || c.responseTime,
+        title: c.CommandTitle || c.title,
+        executionResult: c.ExecutionResult || c.executionResult,
+        createdBy: c.CreatedBy || c.createdBy
+      }));
     } catch (e) {
       console.error("Fetch commands failed:", e);
       return [];
     }
+  }
+
+  async deleteCommand(commandId: number): Promise<boolean> {
+    await this.initialize();
+    if (!this.token || !this.baseUrl) return false;
+
+    const endpoints = [
+      { url: `${this.baseUrl}/api/DeviceCommand/Delete?id=${commandId}`, method: 'DELETE' },
+      { url: `${this.baseUrl}/api/DeviceCommand/${commandId}`, method: 'DELETE' },
+      { url: `${this.baseUrl}/api/DeviceCommand/Delete?id=${commandId}`, method: 'POST' },
+      { url: `${this.baseUrl}/api/DeviceCommand/Delete?id=${commandId}`, method: 'GET' },
+      { url: `${this.baseUrl}/api/DeviceCommand/DeleteCommand?id=${commandId}`, method: 'DELETE' },
+      { url: `${this.baseUrl}/api/DeviceCommand/DeleteCommand?id=${commandId}`, method: 'POST' },
+      { url: `${this.baseUrl}/api/DeviceCommand/DeleteCommand?id=${commandId}`, method: 'GET' },
+      { url: `${this.baseUrl}/api/Command/Delete?id=${commandId}`, method: 'DELETE' },
+      { url: `${this.baseUrl}/api/Command/Delete?id=${commandId}`, method: 'GET' }
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await this.proxyFetch(endpoint.url, {
+          method: endpoint.method
+        });
+        if (response.ok) return true;
+      } catch (e) {
+        console.warn(`Delete command failed for ${endpoint.url}:`, e);
+      }
+    }
+    return false;
   }
 }
 

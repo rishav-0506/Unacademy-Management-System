@@ -61,6 +61,8 @@ const SettingsView: React.FC = () => {
   const [selectedDeviceId, setSelectedDeviceId] = useState('');
   const [isDeletingUser, setIsDeletingUser] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<{ id: string, name: string } | null>(null);
+  const [isDeletingCommand, setIsDeletingCommand] = useState<number | null>(null);
+  const [commandToDelete, setCommandToDelete] = useState<{ id: number, title: string } | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [dbStudents, setDbStudents] = useState<any[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
@@ -70,6 +72,9 @@ const SettingsView: React.FC = () => {
   const [showCommandsModal, setShowCommandsModal] = useState(false);
   const [fetchedCommands, setFetchedCommands] = useState<any[]>([]);
   const [isFetchingCommands, setIsFetchingCommands] = useState(false);
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [fetchedLogs, setFetchedLogs] = useState<any[]>([]);
+  const [isFetchingLogs, setIsFetchingLogs] = useState(false);
   const [dbStatus, setDbStatus] = useState<'Checking' | 'Connected' | 'Error' | 'Disconnected'>('Checking');
   const [dbError, setDbError] = useState<string | null>(null);
 
@@ -287,9 +292,29 @@ const SettingsView: React.FC = () => {
     if (!supabase) return;
     setIsFetchingDevices(true);
     try {
-      const { data, error } = await supabase.from('biometric_devices').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      setDevices(data || []);
+      // 1. Fetch devices from Supabase
+      const { data: dbDevices, error: dbError } = await supabase
+        .from('biometric_devices')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (dbError) throw dbError;
+
+      // 2. Fetch live data from Cloud API
+      await biometricService.initialize();
+      const apiDevices = await biometricService.getDevices();
+
+      // 3. Merge live data into DB devices
+      const mergedDevices = (dbDevices || []).map(dbDev => {
+        const apiDev = apiDevices.find(a => a.cloud_key === dbDev.cloud_key);
+        return {
+          ...dbDev,
+          status: apiDev ? apiDev.status : 'Offline',
+          last_sync: apiDev ? apiDev.last_sync : dbDev.last_sync
+        };
+      });
+
+      setDevices(mergedDevices);
     } catch (e: any) {
       showToast("Failed to fetch devices: " + e.message, "error");
     } finally {
@@ -308,9 +333,9 @@ const SettingsView: React.FC = () => {
         { ...newDevice, status: 'Offline' }
       ]).select();
       if (error) throw error;
-      setDevices([data[0], ...devices]);
       setNewDevice({ name: '', cloud_key: '', location: '' });
       showToast("Device added successfully", "success");
+      await fetchDevices();
     } catch (e: any) {
       showToast("Failed to add device: " + e.message, "error");
     } finally {
@@ -359,8 +384,18 @@ const SettingsView: React.FC = () => {
     
     try {
       if (type === 'logs') {
+        setIsFetchingLogs(true);
         const logs = await biometricService.fetchLogs(device.cloud_key);
+        setFetchedLogs(logs);
+        setSelectedDeviceName(device.name);
+        setSelectedDeviceId(device.id);
+        setShowLogsModal(true);
+        
+        // Trigger server-side sync for background processing
+        fetch('/api/sync-biometric', { method: 'POST' }).catch(console.error);
+        
         await biometricService.syncLogsToSupabase(logs);
+        setIsFetchingLogs(false);
         showToast(`Fetched ${logs.length} logs and synced to attendance`, "success");
       } else if (type === 'users') {
         const users = await biometricService.fetchUsersFromDevice(device.cloud_key);
@@ -480,6 +515,24 @@ const SettingsView: React.FC = () => {
       showToast("Failed to delete user: " + e.message, "error");
     } finally {
       setIsDeletingUser(null);
+    }
+  };
+
+  const handleDeleteCommand = async (commandId: number) => {
+    setIsDeletingCommand(commandId);
+    try {
+      const success = await biometricService.deleteCommand(commandId);
+      if (success) {
+        showToast("Command deleted successfully", "success");
+        setFetchedCommands(prev => prev.filter(c => c.id !== commandId));
+        setCommandToDelete(null);
+      } else {
+        showToast("Failed to delete command from server", "error");
+      }
+    } catch (e: any) {
+      showToast("Error deleting command: " + e.message, "error");
+    } finally {
+      setIsDeletingCommand(null);
     }
   };
 
@@ -1213,25 +1266,25 @@ const SettingsView: React.FC = () => {
                     <div key={idx} className="p-4 rounded-xl border border-supabase-border bg-supabase-sidebar flex flex-col gap-3 group hover:border-supabase-green/30 transition-all">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-lg bg-supabase-green/10 flex items-center justify-center text-supabase-green font-black text-xs shrink-0">
-                          {(user.UserName || user.userName || user.UserId || user.userId || '?').charAt(0)}
+                          {(user.userName || user.userId || '?').charAt(0)}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs font-black text-supabase-text uppercase tracking-tight truncate">{user.UserName || user.userName || 'Unknown'}</p>
+                            <p className="text-xs font-black text-supabase-text uppercase tracking-tight truncate">{user.userName || 'Unknown'}</p>
                             <div 
-                              className={`w-2 h-2 rounded-full ${user.IsActive ? 'bg-supabase-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500'}`} 
-                              title={user.IsActive ? 'Active' : 'Inactive'} 
+                              className={`w-2 h-2 rounded-full ${user.isActive ? 'bg-supabase-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500'}`} 
+                              title={user.isActive ? 'Active' : 'Inactive'} 
                             />
                           </div>
-                          <p className="text-[10px] text-supabase-muted font-mono">ID: {user.UserId || user.userId}</p>
+                          <p className="text-[10px] text-supabase-muted font-mono">ID: {user.userId}</p>
                         </div>
                         <button
-                          onClick={() => setUserToDelete({ id: user.UserId || user.userId, name: user.UserName || user.userName || 'Unknown' })}
-                          disabled={isDeletingUser === (user.UserId || user.userId)}
+                          onClick={() => setUserToDelete({ id: user.userId, name: user.userName || 'Unknown' })}
+                          disabled={isDeletingUser === user.userId}
                           className="p-2 text-supabase-muted hover:text-red-400 transition-colors disabled:opacity-50"
                           title="Delete User from Device"
                         >
-                          {isDeletingUser === (user.UserId || user.userId) ? (
+                          {isDeletingUser === user.userId ? (
                             <Loader2 size={14} className="animate-spin" />
                           ) : (
                             <Trash2 size={14} />
@@ -1242,20 +1295,20 @@ const SettingsView: React.FC = () => {
                       <div className="grid grid-cols-2 gap-y-2 gap-x-4 pt-3 border-t border-supabase-border/30">
                         <div className="flex items-center gap-1.5 text-[9px] text-supabase-muted uppercase tracking-widest">
                           <Shield size={10} className="text-supabase-green" />
-                          <span className="truncate">{user.Privilege || 'USER'}</span>
+                          <span className="truncate">{user.privilege || 'USER'}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-[9px] text-supabase-muted uppercase tracking-widest">
                           <Fingerprint size={10} className="text-supabase-green" />
-                          <span>FP: {user.FPCount || 0}</span>
+                          <span>FP: {user.fpCount || 0}</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-[9px] text-supabase-muted uppercase tracking-widest">
                           <UserCheck size={10} className="text-supabase-green" />
-                          <span>FACE: {user.FaceCount || 0}</span>
+                          <span>FACE: {user.faceCount || 0}</span>
                         </div>
-                        {(user.CardNumber || user.cardNumber) && (
+                        {user.cardNumber && (
                           <div className="flex items-center gap-1.5 text-[9px] text-supabase-green uppercase tracking-widest font-mono">
                             <Link2 size={10} />
-                            <span className="truncate">{user.CardNumber || user.cardNumber}</span>
+                            <span className="truncate">{user.cardNumber}</span>
                           </div>
                         )}
                       </div>
@@ -1310,6 +1363,130 @@ const SettingsView: React.FC = () => {
         </div>
       )}
 
+      {/* Command Delete Confirmation Modal */}
+      {commandToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-supabase-panel border border-supabase-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 mx-auto mb-4">
+                <Trash2 size={24} />
+              </div>
+              <h3 className="text-sm font-black text-supabase-text uppercase tracking-widest">Delete Command</h3>
+              <p className="text-xs text-supabase-muted">
+                Are you sure you want to delete command <strong>{commandToDelete.title}</strong> (ID: {commandToDelete.id}) from the history?
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCommandToDelete(null)}
+                className="flex-1 px-4 py-2 bg-supabase-sidebar border border-supabase-border text-supabase-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-supabase-green transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteCommand(commandToDelete.id)}
+                disabled={isDeletingCommand === commandToDelete.id}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeletingCommand === commandToDelete.id ? <Loader2 size={12} className="animate-spin" /> : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logs Modal */}
+      {showLogsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-supabase-panel border border-supabase-border rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-supabase-border flex items-center justify-between bg-supabase-sidebar sticky top-0 z-10">
+              <div>
+                <h3 className="text-sm font-black text-supabase-text uppercase tracking-widest">Device Logs: {selectedDeviceName}</h3>
+                <p className="text-[10px] text-supabase-muted font-black uppercase tracking-widest mt-1">Raw attendance data from device</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => syncData(selectedDeviceId, 'logs')}
+                  className="p-2 text-supabase-muted hover:text-supabase-green transition-colors"
+                  title="Refresh"
+                >
+                  <RefreshCw size={18} className={isFetchingLogs ? 'animate-spin' : ''} />
+                </button>
+                <button 
+                  onClick={() => setShowLogsModal(false)}
+                  className="p-2 text-supabase-muted hover:text-supabase-text hover:bg-supabase-sidebar rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-3">
+                {fetchedLogs.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-supabase-border">
+                          <th className="py-3 px-4 text-[9px] font-black text-supabase-muted uppercase tracking-widest">User</th>
+                          <th className="py-3 px-4 text-[9px] font-black text-supabase-muted uppercase tracking-widest">User ID</th>
+                          <th className="py-3 px-4 text-[9px] font-black text-supabase-muted uppercase tracking-widest">Time</th>
+                          <th className="py-3 px-4 text-[9px] font-black text-supabase-muted uppercase tracking-widest">Mode</th>
+                          <th className="py-3 px-4 text-[9px] font-black text-supabase-muted uppercase tracking-widest">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {fetchedLogs.map((log, idx) => (
+                          <tr key={idx} className="border-b border-supabase-border/50 hover:bg-supabase-sidebar/50 transition-colors">
+                            <td className="py-3 px-4">
+                              <p className="text-xs font-black text-supabase-text uppercase tracking-tight">{log.userName || 'Unknown'}</p>
+                            </td>
+                            <td className="py-3 px-4">
+                              <p className="text-[10px] text-supabase-muted font-mono">{log.userId}</p>
+                            </td>
+                            <td className="py-3 px-4">
+                              <p className="text-[10px] text-supabase-text font-mono">{log.ioTime}</p>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="px-2 py-0.5 rounded-md bg-supabase-panel border border-supabase-border text-[8px] font-black uppercase tracking-widest text-supabase-muted">
+                                {log.verifyMode || 'N/A'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                                log.ioMode === 'Check-In' ? 'bg-supabase-green/20 text-supabase-green border border-supabase-green/30' :
+                                'bg-supabase-panel border border-supabase-border text-supabase-muted'
+                              }`}>
+                                {log.ioMode || 'Entry'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-20 text-supabase-muted opacity-30 gap-3">
+                    <Activity size={48} />
+                    <p className="text-[10px] font-black uppercase tracking-widest">No logs found for today</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-supabase-border bg-supabase-sidebar flex justify-end">
+              <button
+                onClick={() => setShowLogsModal(false)}
+                className="px-8 py-2 bg-supabase-panel border border-supabase-border text-supabase-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-supabase-green transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Command Queue Modal */}
       {showCommandsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -1343,30 +1520,49 @@ const SettingsView: React.FC = () => {
                     <div key={idx} className="p-4 bg-supabase-sidebar border border-supabase-border rounded-xl flex items-center justify-between group hover:border-supabase-green/30 transition-all">
                       <div className="flex items-center gap-4">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          cmd.Status === 'Success' ? 'bg-supabase-green/10 text-supabase-green' :
-                          cmd.Status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500' :
+                          cmd.status === 'Success' ? 'bg-supabase-green/10 text-supabase-green' :
+                          cmd.status === 'Pending' ? 'bg-yellow-500/10 text-yellow-500' :
                           'bg-red-500/10 text-red-500'
                         }`}>
-                          {cmd.Status === 'Success' ? <Check size={16} /> : 
-                           cmd.Status === 'Pending' ? <Clock size={16} /> : 
+                          {cmd.status === 'Success' ? <Check size={16} /> : 
+                           cmd.status === 'Pending' ? <Clock size={16} /> : 
                            <X size={16} />}
                         </div>
                         <div>
-                          <p className="text-xs font-black text-supabase-text uppercase tracking-tight">{cmd.CommandType || 'Unknown Command'}</p>
-                          <p className="text-[10px] text-supabase-muted font-mono">ID: {cmd.Id || 'N/A'} • {cmd.CreateTime || 'No date'}</p>
+                          <p className="text-xs font-black text-supabase-text uppercase tracking-tight">
+                            {cmd.title || cmd.commandType || 'Unknown Command'}
+                          </p>
+                          <p className="text-[10px] text-supabase-muted font-mono">
+                            ID: {cmd.id || 'N/A'} • {cmd.createTime ? new Date(cmd.createTime).toLocaleString() : 'No date'}
+                          </p>
+                          {cmd.createdBy && (
+                            <p className="text-[9px] text-supabase-muted mt-0.5 font-mono italic">By: {cmd.createdBy}</p>
+                          )}
+                          {cmd.executionResult && cmd.executionResult !== 'OK' && (
+                            <p className="text-[9px] text-red-400 mt-1 font-mono">Result: {cmd.executionResult}</p>
+                          )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${
-                          cmd.Status === 'Success' ? 'bg-supabase-green/20 text-supabase-green border border-supabase-green/30' :
-                          cmd.Status === 'Pending' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
-                          'bg-red-500/20 text-red-500 border border-red-500/30'
-                        }`}>
-                          {cmd.Status || 'Unknown'}
-                        </span>
-                        {cmd.ResponseTime && (
-                          <p className="text-[9px] text-supabase-muted mt-1 font-mono">Processed: {cmd.ResponseTime}</p>
-                        )}
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className={`px-2 py-1 rounded-md text-[8px] font-black uppercase tracking-widest ${
+                            cmd.status === 'Success' ? 'bg-supabase-green/20 text-supabase-green border border-supabase-green/30' :
+                            cmd.status === 'Pending' ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30' :
+                            'bg-red-500/20 text-red-500 border border-red-500/30'
+                          }`}>
+                            {cmd.status || 'Unknown'}
+                          </span>
+                          {cmd.responseTime && (
+                            <p className="text-[9px] text-supabase-muted mt-1 font-mono">Processed: {cmd.responseTime}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setCommandToDelete({ id: cmd.id, title: cmd.title || cmd.commandType })}
+                          className="p-2 text-supabase-muted hover:text-red-500 transition-colors"
+                          title="Delete command"
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </div>
                   ))
