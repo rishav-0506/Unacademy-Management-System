@@ -102,7 +102,14 @@ const SettingsView: React.FC = () => {
   }, [activeTab]);
 
   const checkDatabaseConnection = async (manual = false) => {
-    if (!supabase) {
+    let currentSupabase = supabase;
+    
+    if (!currentSupabase) {
+      const { reinitializeSupabase } = await import('../services/supabaseClient');
+      currentSupabase = reinitializeSupabase();
+    }
+
+    if (!currentSupabase) {
       setDbStatus('Disconnected');
       setDbError('Supabase client not initialized. Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in the Secrets menu and you have clicked "Apply changes".');
       if (manual) showToast('Supabase client not initialized. Check Secrets.', 'error');
@@ -110,9 +117,18 @@ const SettingsView: React.FC = () => {
     }
 
     setDbStatus('Checking');
+    
+    // Create a promise that rejects after 10 seconds
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Connection timed out after 10 seconds')), 10000)
+    );
+
     try {
-      // Perform a simple query to verify connection
-      const { error } = await supabase.from('system_config').select('key').limit(1);
+      // Perform a simple query to verify connection with a timeout
+      const queryPromise = currentSupabase.from('system_config').select('key').limit(1);
+      
+      const { error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+      
       if (error) throw error;
       setDbStatus('Connected');
       setDbError(null);

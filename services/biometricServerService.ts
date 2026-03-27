@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import axios from 'axios';
+import https from 'https';
 
 export interface BiometricLog {
   id: number;
@@ -13,6 +14,17 @@ export interface BiometricLog {
   workCode: string;
 }
 
+// Create an HTTPS agent that ignores self-signed certificate errors
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
+
+// Create a configured axios instance
+const apiClient = axios.create({
+  timeout: 15000, // 15 seconds timeout
+  httpsAgent,
+});
+
 export class BiometricServerService {
   private supabase: any = supabase;
   private baseUrl: string = '';
@@ -23,11 +35,20 @@ export class BiometricServerService {
     // Shared client is already initialized
   }
 
+  private async fetchWithTimeout(query: any, timeoutMs = 30000) {
+    return Promise.race([
+      query,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase operation timed out')), timeoutMs))
+    ]);
+  }
+
   async initialize() {
     if (this.isInitialized || !this.supabase) return;
     
     try {
-      const { data } = await this.supabase.from('system_config').select('value').eq('key', 'biometric_api_config').maybeSingle();
+      const { data } = await this.fetchWithTimeout(
+        this.supabase.from('system_config').select('value').eq('key', 'biometric_api_config').maybeSingle()
+      ) as any;
       if (data?.value) {
         const config = data.value as any;
         this.baseUrl = config.baseUrl.replace(/\/+$/, '');
@@ -44,7 +65,7 @@ export class BiometricServerService {
   private async login(username: string, password: string) {
     if (!this.baseUrl) return;
     try {
-      const response = await axios.post(`${this.baseUrl}/api/Auth/Login`, {
+      const response = await apiClient.post(`${this.baseUrl}/api/Auth/Login`, {
         Username: username,
         Password: password
       });
@@ -72,9 +93,9 @@ export class BiometricServerService {
 
     try {
       // 1. Get allowed device keys from local Supabase
-      const { data: localDevices, error: localError } = await this.supabase
-        .from('biometric_devices')
-        .select('cloud_key');
+      const { data: localDevices, error: localError } = await this.fetchWithTimeout(
+        this.supabase.from('biometric_devices').select('cloud_key')
+      ) as any;
       
       if (localError) throw localError;
       
@@ -86,7 +107,7 @@ export class BiometricServerService {
       }
 
       // 2. Get all devices from Cloud API to verify they exist
-      const devicesResponse = await axios.get(`${this.baseUrl}/api/Device`, { headers: this.getHeaders() });
+      const devicesResponse = await apiClient.get(`${this.baseUrl}/api/Device`, { headers: this.getHeaders() });
       const apiDevices = devicesResponse.data;
 
       if (!Array.isArray(apiDevices)) return;
@@ -98,7 +119,7 @@ export class BiometricServerService {
         if (allowedKeys.has(deviceKey)) {
           console.log(`Triggering log fetch for device: ${deviceKey}`);
           try {
-            await axios.post(`${this.baseUrl}/api/DeviceCommand?commandType=FetchAllLogs`, [deviceKey], { headers: this.getHeaders() });
+            await apiClient.post(`${this.baseUrl}/api/DeviceCommand?commandType=FetchAllLogs`, [deviceKey], { headers: this.getHeaders() });
           } catch (e: any) {
             if (!e.response?.data?.includes?.('already in progress')) {
               console.warn(`FetchAllLogs command failed for ${deviceKey}:`, e.message);
@@ -128,7 +149,7 @@ export class BiometricServerService {
       for (const url of endpoints) {
         try {
           console.log(`Attempting to fetch logs from: ${url}`);
-          const response = await axios.get(url, { headers: this.getHeaders() });
+          const response = await apiClient.get(url, { headers: this.getHeaders() });
           const data = response.data;
           
           if (Array.isArray(data)) {
@@ -195,7 +216,9 @@ export class BiometricServerService {
     );
 
     try {
-      const { error } = await this.supabase.from('attendance_logs').upsert(uniqueData, { onConflict: 'student_id,date' });
+      const { error } = await this.fetchWithTimeout(
+        this.supabase.from('attendance_logs').upsert(uniqueData, { onConflict: 'student_id,date' })
+      ) as any;
       if (error) throw error;
       console.log(`Synced ${uniqueData.length} logs to Supabase`);
     } catch (e) {

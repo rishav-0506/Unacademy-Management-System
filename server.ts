@@ -4,6 +4,7 @@ import cors from "cors";
 import axios from "axios";
 import path from "path";
 import { fileURLToPath } from "url";
+import https from "https";
 import { biometricServerService } from "./services/biometricServerService";
 import { supabase } from "./services/supabaseClient";
 
@@ -12,6 +13,12 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
+
+// Create an HTTPS agent that ignores self-signed certificate errors
+// This is crucial for biometric devices/APIs that often use self-signed certs
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
 
 // Log Supabase connection status on startup
 if (supabase) {
@@ -23,6 +30,9 @@ if (supabase) {
 app.use(cors());
 app.use(express.json());
 
+// Trust proxy to get the correct client IP when behind Cloudflare/Coolify
+app.set('trust proxy', true);
+
 // Biometric API Proxy
 app.post("/api/biometric-proxy", async (req, res) => {
   const { url, method, headers, body } = req.body;
@@ -33,26 +43,54 @@ app.post("/api/biometric-proxy", async (req, res) => {
 
   try {
     console.log(`Proxying ${method || "GET"} to ${url}`);
+    
+    // Sanitize headers to prevent Host/Origin mismatch issues on the target server
+    const sanitizedHeaders = { ...headers };
+    delete sanitizedHeaders.host;
+    delete sanitizedHeaders.origin;
+    delete sanitizedHeaders.referer;
+    delete sanitizedHeaders.connection;
+    delete sanitizedHeaders['accept-encoding'];
+    
+    // Remove Cloudflare specific headers before forwarding to the biometric device
+    // The device doesn't need these and they might cause issues
+    delete sanitizedHeaders['cf-connecting-ip'];
+    delete sanitizedHeaders['cf-ipcountry'];
+    delete sanitizedHeaders['cf-ray'];
+    delete sanitizedHeaders['cf-visitor'];
+    delete sanitizedHeaders['x-forwarded-proto'];
+    delete sanitizedHeaders['x-forwarded-for'];
+
     const response = await axios({
       url,
       method: method || "GET",
-      headers: {
-        ...headers,
-        host: undefined,
-      },
+      headers: sanitizedHeaders,
       data: method && method !== "GET" ? body : undefined,
+      timeout: 15000, // 15 second timeout to prevent hanging the Coolify container
+      httpsAgent, // Ignore self-signed certs
     });
 
     res.status(response.status).json(response.data);
   } catch (error: any) {
     const status = error.response?.status || 500;
-    const data = error.response?.data || { error: error.message };
+    
+    // Handle specific network errors (e.g., timeout, connection refused)
+    let data = error.response?.data;
+    if (!data) {
+      if (error.code === 'ECONNABORTED') {
+        data = { error: "Connection to biometric API timed out after 15 seconds." };
+      } else if (error.code === 'ECONNREFUSED') {
+        data = { error: "Connection refused by biometric API. Is the device online?" };
+      } else {
+        data = { error: error.message || "Unknown network error occurred." };
+      }
+    }
     
     // Reduce noise for 404s and 405s as they are often part of endpoint discovery
     if (status === 404 || status === 405) {
       console.log(`Proxy ${status}: ${url}`);
     } else {
-      console.error(`Proxy error (${status}):`, JSON.stringify(data));
+      console.error(`Proxy error (${status}) for ${url}:`, JSON.stringify(data));
     }
     
     res.status(status).json(data);

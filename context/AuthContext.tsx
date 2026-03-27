@@ -125,26 +125,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           });
           subscription = sub;
 
-          // 3. Load System Config
-          const { data: matrixData, error: matrixError } = await supabase.from('system_config').select('value').eq('key', 'permissions_matrix').maybeSingle();
-          if (matrixError) console.error("Error loading permissions_matrix:", matrixError.message);
-          if (matrixData?.value) setPermissions(matrixData.value as PermissionMap);
+          // 3. Load System Config with timeout
+          const fetchWithTimeout = async (query: any, timeoutMs = 10000) => {
+            return Promise.race([
+              query,
+              new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch timed out')), timeoutMs))
+            ]);
+          };
 
-          const { data: rolesData, error: rolesError } = await supabase.from('system_config').select('value').eq('key', 'system_roles').maybeSingle();
-          if (rolesError) console.error("Error loading system_roles:", rolesError.message);
-          if (rolesData?.value) setAvailableRoles(rolesData.value as UserRole[]);
+          try {
+            const { data: matrixData, error: matrixError } = await fetchWithTimeout(
+              supabase.from('system_config').select('value').eq('key', 'permissions_matrix').maybeSingle()
+            ) as any;
+            if (matrixError) console.error("Error loading permissions_matrix:", matrixError.message);
+            if (matrixData?.value) setPermissions(matrixData.value as PermissionMap);
+          } catch (e) {
+            console.warn("permissions_matrix fetch timed out or failed");
+          }
 
-          const { data: deptsData, error: deptsError } = await supabase.from('system_config').select('value').eq('key', 'system_departments').maybeSingle();
-          if (deptsError) console.error("Error loading system_departments:", deptsError.message);
-          if (deptsData?.value) setDepartments(deptsData.value as string[]);
+          try {
+            const { data: rolesData, error: rolesError } = await fetchWithTimeout(
+              supabase.from('system_config').select('value').eq('key', 'system_roles').maybeSingle()
+            ) as any;
+            if (rolesError) console.error("Error loading system_roles:", rolesError.message);
+            if (rolesData?.value) setAvailableRoles(rolesData.value as UserRole[]);
+          } catch (e) {
+            console.warn("system_roles fetch timed out or failed");
+          }
 
-          const { data: desigData, error: desigError } = await supabase.from('system_config').select('value').eq('key', 'system_designations').maybeSingle();
-          if (desigError) console.error("Error loading system_designations:", desigError.message);
-          if (desigData?.value) setDesignations(desigData.value as string[]);
+          try {
+            const { data: deptsData, error: deptsError } = await fetchWithTimeout(
+              supabase.from('system_config').select('value').eq('key', 'system_departments').maybeSingle()
+            ) as any;
+            if (deptsError) console.error("Error loading system_departments:", deptsError.message);
+            if (deptsData?.value) setDepartments(deptsData.value as string[]);
+          } catch (e) {
+            console.warn("system_departments fetch timed out or failed");
+          }
 
-          const { data: mapData, error: mapError } = await supabase.from('system_config').select('value').eq('key', 'dept_designation_map').maybeSingle();
-          if (mapError) console.error("Error loading dept_designation_map:", mapError.message);
-          if (mapData?.value) setDepartmentDesignationMap(mapData.value as Record<string, string[]>);
+          try {
+            const { data: desigData, error: desigError } = await fetchWithTimeout(
+              supabase.from('system_config').select('value').eq('key', 'system_designations').maybeSingle()
+            ) as any;
+            if (desigError) console.error("Error loading system_designations:", desigError.message);
+            if (desigData?.value) setDesignations(desigData.value as string[]);
+          } catch (e) {
+            console.warn("system_designations fetch timed out or failed");
+          }
+
+          try {
+            const { data: mapData, error: mapError } = await fetchWithTimeout(
+              supabase.from('system_config').select('value').eq('key', 'dept_designation_map').maybeSingle()
+            ) as any;
+            if (mapError) console.error("Error loading dept_designation_map:", mapError.message);
+            if (mapData?.value) setDepartmentDesignationMap(mapData.value as Record<string, string[]>);
+          } catch (e) {
+            console.warn("dept_designation_map fetch timed out or failed");
+          }
         }
       } catch (e) {
         console.error("Auth initialization failed:", e);
