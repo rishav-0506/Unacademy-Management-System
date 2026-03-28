@@ -62,6 +62,57 @@ app.get("/api/debug-env", (req, res) => {
   });
 });
 
+// Server-side Supabase health check
+app.get("/api/supabase-health", async (req, res) => {
+  if (!supabase) {
+    return res.status(500).json({ 
+      status: "error", 
+      message: "Supabase client not initialized on server." 
+    });
+  }
+
+  try {
+    const start = Date.now();
+    const hasUrl = !!(process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL);
+    const hasKey = !!(process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY);
+
+    // Try a simple query with a timeout
+    const { data, error } = await Promise.race([
+      supabase.from('system_config').select('key').limit(1),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Server-side timeout after 10s")), 10000))
+    ]) as any;
+
+    const duration = Date.now() - start;
+
+    if (error) {
+      console.error("Supabase health check query error:", error);
+      return res.status(500).json({ 
+        status: "error", 
+        message: error.message, 
+        code: error.code,
+        duration_ms: duration,
+        env: { hasUrl, hasKey }
+      });
+    }
+
+    res.json({ 
+      status: "success", 
+      message: "Server can reach Supabase", 
+      duration_ms: duration,
+      url: supabase.supabaseUrl,
+      env: { hasUrl, hasKey }
+    });
+  } catch (error: any) {
+    const duration = Date.now() - (typeof start !== 'undefined' ? start : Date.now());
+    console.error("Supabase health check exception:", error);
+    res.status(500).json({ 
+      status: "error", 
+      message: error.message || "Unknown server-side error",
+      duration_ms: duration
+    });
+  }
+});
+
 // Biometric API Proxy
 app.post("/api/biometric-proxy", async (req, res) => {
   const { url, method, headers, body } = req.body;

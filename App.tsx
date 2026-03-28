@@ -238,6 +238,45 @@ const AppContent: React.FC = () => {
                     Check Server Environment Variables
                   </button>
                   <button
+                    onClick={async () => {
+                      const url = localStorage.getItem('supabase_manual_url') || 
+                                 (window as any).env?.VITE_SUPABASE_URL || 
+                                 (import.meta as any).env?.VITE_SUPABASE_URL;
+                      
+                      if (!url) {
+                        alert("Supabase URL not found in environment or local storage.");
+                        return;
+                      }
+
+                      try {
+                        const start = Date.now();
+                        // mode: 'no-cors' is key here to avoid CORS issues for a simple reachability check
+                        await fetch(url, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
+                        const latency = Date.now() - start;
+                        alert(`Network Check: SUCCESS\nYour browser can reach ${url}\nLatency: ${latency}ms`);
+                      } catch (e: any) {
+                        alert(`Network Check: FAILED\nYour browser could NOT reach ${url}\nError: ${e.message}\n\nThis usually means your local network or a firewall is blocking access to Supabase.`);
+                      }
+                    }}
+                    className="block w-full text-[10px] text-supabase-green hover:underline mt-2"
+                  >
+                    Check Browser Network Reachability
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/supabase-health');
+                        const data = await res.json();
+                        alert(JSON.stringify(data, null, 2));
+                      } catch (e) {
+                        alert("Failed to fetch health info. Is the server running?");
+                      }
+                    }}
+                    className="block w-full text-[10px] text-supabase-green hover:underline mt-2"
+                  >
+                    Check Server Health (Supabase Connection)
+                  </button>
+                  <button
                     onClick={() => {
                       localStorage.removeItem('supabase_manual_url');
                       localStorage.removeItem('supabase_manual_key');

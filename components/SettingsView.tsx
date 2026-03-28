@@ -78,6 +78,9 @@ const SettingsView: React.FC = () => {
   const [isFetchingLogs, setIsFetchingLogs] = useState(false);
   const [dbStatus, setDbStatus] = useState<'Checking' | 'Connected' | 'Error' | 'Disconnected'>('Checking');
   const [dbError, setDbError] = useState<string | null>(null);
+  const [networkInfo, setNetworkInfo] = useState<{ reachable: boolean | null, latency?: number, error?: string }>({ reachable: null });
+  const [serverHealth, setServerHealth] = useState<{ status: string, duration?: string, error?: string } | null>(null);
+  const [isCheckingServer, setIsCheckingServer] = useState(false);
 
   const [cloudConfig, setCloudConfig] = useState({
     baseUrl: '',
@@ -117,46 +120,86 @@ const SettingsView: React.FC = () => {
     }
 
     setDbStatus('Checking');
+    setDbError(null);
+    setNetworkInfo({ reachable: null });
     
     const supabaseUrl = currentSupabase.supabaseUrl;
     
     // Create a promise that rejects after 20 seconds
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error(`Connection timed out after 20 seconds trying to reach: ${supabaseUrl}. Please verify this URL is publicly accessible from your browser and not blocked by a firewall.`)), 20000)
+      setTimeout(() => reject(new Error(`Connection timed out after 20 seconds trying to reach: ${supabaseUrl}. This usually indicates a network/firewall issue or that the Supabase project is paused.`)), 20000)
     );
 
     try {
-      // First, try a simple fetch to the Supabase REST API root to check basic connectivity
-      const healthCheckUrl = `${supabaseUrl}/rest/v1/`;
-      const healthCheckPromise = fetch(healthCheckUrl, { method: 'GET' }).then(res => {
-        if (!res.ok && res.status !== 404 && res.status !== 401 && res.status !== 400) {
-          throw new Error(`HTTP Error ${res.status} when reaching ${healthCheckUrl}`);
+      const start = Date.now();
+      
+      // 1. Raw Network Check (DNS/Reachability)
+      const networkCheck = async () => {
+        try {
+          // Try to fetch the Supabase URL directly. 
+          // We use mode: 'no-cors' because we just want to see if the server responds at all.
+          await fetch(supabaseUrl, { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
+          return { reachable: true, latency: Date.now() - start };
+        } catch (err: any) {
+          return { reachable: false, error: err.message };
         }
-        return true;
-      }).catch(e => {
-        // If it's a TypeError, it's likely a CORS or network issue
-        if (e.name === 'TypeError' && e.message === 'Failed to fetch') {
-           throw new Error(`Network error or CORS issue when reaching ${healthCheckUrl}. Is the server running and accessible?`);
-        }
-        throw new Error(`Failed to reach ${healthCheckUrl}: ${e.message}`);
-      });
+      };
 
-      await Promise.race([healthCheckPromise, timeoutPromise]);
-
-      // Perform a simple query to verify connection with a timeout
+      // 2. Supabase Client Checks
+      const authCheckPromise = currentSupabase.auth.getSession();
       const queryPromise = currentSupabase.from('system_config').select('key').limit(1);
       
-      const { error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+      // Race everything against the timeout
+      const results = await Promise.race([
+        Promise.all([networkCheck(), authCheckPromise, queryPromise]),
+        timeoutPromise
+      ]) as any;
       
-      if (error) throw error;
+      const [netResult, authResult, queryResult] = results;
+      setNetworkInfo(netResult);
+
+      if (queryResult.error && queryResult.error.code !== 'PGRST116') {
+        throw queryResult.error;
+      }
+      
       setDbStatus('Connected');
       setDbError(null);
       if (manual) showToast('Database connected successfully', 'success');
     } catch (e: any) {
+      console.error('Database connection check failed:', e);
       setDbStatus('Error');
-      setDbError(e.message || 'Unknown connection error');
+      
+      // Try to determine if it's a network issue
+      if (e.message?.includes('timed out')) {
+        setDbError(`Timeout: The browser could not reach ${supabaseUrl} within 20s. Check your internet connection or firewall.`);
+      } else {
+        setDbError(e.message || 'Unknown connection error');
+      }
+      
       if (manual) showToast(`Connection failed: ${e.message || 'Unknown error'}`, 'error');
-      console.error("Database connection check failed:", e);
+    }
+  };
+
+  const checkServerHealth = async () => {
+    setIsCheckingServer(true);
+    setServerHealth(null);
+    try {
+      const response = await fetch('/api/supabase-health');
+      if (!response.ok) {
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+      const data = await response.json();
+      setServerHealth(data);
+      if (data.status === 'ok') {
+        showToast(`Server connection OK (${data.duration}ms)`, 'success');
+      } else {
+        showToast(`Server connection failed: ${data.error}`, 'error');
+      }
+    } catch (error: any) {
+      setServerHealth({ status: 'error', error: error.message });
+      showToast(`Failed to check server health: ${error.message}`, 'error');
+    } finally {
+      setIsCheckingServer(false);
     }
   };
 
@@ -1356,7 +1399,16 @@ const SettingsView: React.FC = () => {
                 <div className="p-6 space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-4 bg-supabase-sidebar border border-supabase-border rounded-xl space-y-2">
-                      <p className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Database Status</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Client Status</p>
+                        <button 
+                          onClick={() => checkDatabaseConnection(true)}
+                          className="p-1 text-supabase-muted hover:text-supabase-green transition-colors"
+                          title="Check Client Connection"
+                        >
+                          <RefreshCw size={10} className={dbStatus === 'Checking' ? 'animate-spin' : ''} />
+                        </button>
+                      </div>
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${
                           dbStatus === 'Connected' ? 'bg-supabase-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 
@@ -1371,20 +1423,73 @@ const SettingsView: React.FC = () => {
                       </div>
                     </div>
                     <div className="p-4 bg-supabase-sidebar border border-supabase-border rounded-xl space-y-2">
-                      <p className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Auth Service</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Server Status</p>
+                        <button 
+                          onClick={checkServerHealth}
+                          disabled={isCheckingServer}
+                          className="p-1 text-supabase-muted hover:text-supabase-green transition-colors disabled:opacity-50"
+                          title="Check Server Connection"
+                        >
+                          <RefreshCw size={10} className={isCheckingServer ? 'animate-spin' : ''} />
+                        </button>
+                      </div>
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-supabase-green shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                        <span className="text-sm font-black uppercase tracking-tight text-supabase-green">Operational</span>
+                        <div className={`w-2 h-2 rounded-full ${
+                          serverHealth?.status === 'ok' ? 'bg-supabase-green shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 
+                          isCheckingServer ? 'bg-orange-400 animate-pulse' : 
+                          serverHealth?.status === 'error' ? 'bg-red-500' :
+                          'bg-supabase-muted'
+                        }`} />
+                        <span className={`text-sm font-black uppercase tracking-tight ${
+                          serverHealth?.status === 'ok' ? 'text-supabase-green' : 
+                          isCheckingServer ? 'text-orange-400' : 
+                          serverHealth?.status === 'error' ? 'text-red-500' :
+                          'text-supabase-muted'
+                        }`}>
+                          {isCheckingServer ? 'Checking' : (serverHealth?.status === 'ok' ? 'Connected' : (serverHealth?.status === 'error' ? 'Error' : 'Unknown'))}
+                        </span>
+                        {serverHealth?.duration && (
+                          <span className="text-[10px] text-supabase-muted font-mono ml-auto">{serverHealth.duration}ms</span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {dbError && (
+                  {serverHealth?.error && (
                     <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex gap-3">
-                      <WifiOff size={18} className="text-red-400 shrink-0" />
+                      <Server size={18} className="text-red-400 shrink-0" />
                       <div className="space-y-1">
-                        <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Connection Error</p>
-                        <p className="text-xs text-red-300/80 leading-relaxed font-mono">{dbError}</p>
+                        <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Server Connection Error</p>
+                        <p className="text-xs text-red-300/80 leading-relaxed font-mono">{serverHealth.error}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {dbError && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl space-y-3">
+                      <div className="flex gap-3">
+                        <WifiOff size={18} className="text-red-400 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-black text-red-400 uppercase tracking-widest">Connection Error</p>
+                          <p className="text-xs text-red-300/80 leading-relaxed font-mono">{dbError}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="pt-2 border-t border-red-500/10 flex flex-wrap gap-2">
+                        <div className="px-2 py-1 bg-red-500/20 rounded text-[9px] font-mono text-red-300">
+                          Reachability: {networkInfo.reachable === null ? 'Unknown' : (networkInfo.reachable ? 'YES' : 'NO')}
+                        </div>
+                        {networkInfo.latency && (
+                          <div className="px-2 py-1 bg-red-500/20 rounded text-[9px] font-mono text-red-300">
+                            Latency: {networkInfo.latency}ms
+                          </div>
+                        )}
+                        {networkInfo.error && (
+                          <div className="px-2 py-1 bg-red-500/20 rounded text-[9px] font-mono text-red-300">
+                            Net Error: {networkInfo.error}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1405,61 +1510,6 @@ const SettingsView: React.FC = () => {
                           )}
                         </div>
                       ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 pt-4 border-t border-supabase-border/50">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-supabase-muted">Manual Configuration Overrides</h4>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Supabase URL</label>
-                        <input 
-                          type="text" 
-                          defaultValue={localStorage.getItem('manual_supabase_url') || ''} 
-                          onBlur={(e) => {
-                            if (e.target.value) {
-                              localStorage.setItem('manual_supabase_url', e.target.value);
-                              showToast("Manual URL staged. Reload to apply.", "info");
-                            }
-                          }}
-                          placeholder="https://xyz.supabase.co" 
-                          className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-xs text-supabase-text outline-none focus:border-supabase-green font-mono" 
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Supabase Anon Key</label>
-                        <input 
-                          type="password" 
-                          defaultValue={localStorage.getItem('manual_supabase_key') || ''} 
-                          onBlur={(e) => {
-                            if (e.target.value) {
-                              localStorage.setItem('manual_supabase_key', e.target.value);
-                              showToast("Manual Key staged. Reload to apply.", "info");
-                            }
-                          }}
-                          placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
-                          className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-xs text-supabase-text outline-none focus:border-supabase-green font-mono" 
-                        />
-                      </div>
-                      <div className="flex gap-2 pt-2">
-                        <button 
-                          onClick={() => window.location.reload()}
-                          className="flex-1 py-2 bg-supabase-green text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all"
-                        >
-                          Apply & Reload
-                        </button>
-                        <button 
-                          onClick={() => {
-                            localStorage.removeItem('manual_supabase_url');
-                            localStorage.removeItem('manual_supabase_key');
-                            showToast("Manual overrides cleared", "success");
-                            setTimeout(() => window.location.reload(), 1000);
-                          }}
-                          className="flex-1 py-2 bg-red-500/10 text-red-500 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
-                        >
-                          Clear Overrides
-                        </button>
-                      </div>
                     </div>
                   </div>
 
