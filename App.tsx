@@ -13,7 +13,6 @@ import MyTaskView from './components/MyTaskView';
 import LiveScheduleView from './components/LiveScheduleView';
 import AccessControlView from './components/AccessControlView';
 import SettingsView from './components/SettingsView';
-import McpConsole from './components/McpConsole';
 import PayrollView from './components/PayrollView';
 import DeductionManagement from './components/DeductionManagement';
 import SalarySetup from './components/SalarySetup';
@@ -85,7 +84,6 @@ const MainLayout: React.FC<{
       case View.LIVE_SCHEDULE: return <LiveScheduleView />;
       case View.ACCESS_CONTROL: return <AccessControlView />;
       case View.SETTINGS: return <SettingsView />;
-      case View.MCP_CONSOLE: return <McpConsole />;
       case View.PAYROLL: return <PayrollView />;
       case View.PAYROLL_DEDUCTIONS: return <DeductionManagement />;
       case View.PAYROLL_SETUP: return <SalarySetup />;

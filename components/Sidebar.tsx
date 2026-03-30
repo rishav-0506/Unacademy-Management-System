@@ -71,7 +71,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen = f
   // Group views
   const scheduleViews = [View.CLASS_SCHEDULE, View.TABLE_EDITOR, View.LIVE_SCHEDULE];
   const teacherViews = [View.TEACHER_TASKS, View.TODAY_TASK];
-  const academicViews = [View.STUDENTS, View.STUDENT_ATTENDANCE, View.REGISTRATION, View.ADMISSION, View.STUDENT_FEEDBACK];
+  const academicViews = [View.STUDENTS, View.STUDENT_ATTENDANCE, View.REGISTRATION, View.ADMISSION];
   const payrollViews = [View.PAYROLL, View.PAYROLL_SETUP, View.PAYROLL_BASE_SALARY, View.PAYROLL_DEDUCTIONS];
   const financeViews = [View.FEE_COLLECTION, View.FEE_STRUCTURE, View.BILLING];
   
@@ -212,7 +212,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen = f
                   {renderNavItem(View.STUDENT_ATTENDANCE, 'Attendance', <UserCheck size={18} />, 'VIEW_ACADEMIC', true)}
                   {renderNavItem(View.REGISTRATION, 'Registration', <ClipboardList size={18} />, 'VIEW_ACADEMIC', true)}
                   {renderNavItem(View.ADMISSION, 'Admission', <UserPlus size={18} />, 'VIEW_ACADEMIC', true)}
-                  {renderNavItem(View.STUDENT_FEEDBACK, "Student's Feedback", <MessageSquare size={18} />, 'VIEW_ACADEMIC', true)}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -308,11 +307,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen = f
           <div className="mt-6 mb-2 text-xs font-semibold text-supabase-muted uppercase tracking-wider px-3 pb-2">
             Operations
           </div>
+          {renderNavItem(View.STUDENT_FEEDBACK, "Student's Feedback", <MessageSquare size={18} />, 'VIEW_ACADEMIC')}
           {renderNavItem(View.ATTENDANCE_DASHBOARD, 'Attendance Stats', <BarChart3 size={18} />, 'VIEW_REPORTS')}
           {renderNavItem(View.ENQUIRE_CALL_LOG, 'Enquiry Call Log', <History size={18} />, 'VIEW_REPORTS')}
           {renderNavItem(View.ABSENT_CALL_LOG, 'Absent Call Log', <ClipboardList size={18} />, 'VIEW_REPORTS')}
-          {renderNavItem(View.BANKING, 'Banking', <CreditCard size={18} />, 'VIEW_REPORTS')}
-          {renderNavItem(View.LEDGER, 'Ledger', <Book size={18} />, 'VIEW_REPORTS')}
           {renderNavItem(View.WORK_PROGRESS, 'Work Progress', <Activity size={18} />, 'VIEW_REPORTS')}
 
           <div className="mt-6 mb-2 text-xs font-semibold text-supabase-muted uppercase tracking-wider px-3 pb-2">
@@ -323,8 +321,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onChangeView, isOpen = f
           {renderNavItem(View.EMPLOYEES, 'Employees', <Briefcase size={18} />, 'MANAGE_TEACHERS')}
           {renderNavItem(View.ACCESS_CONTROL, 'Access Control', <ShieldCheck size={18} />, 'MANAGE_ROLES')}
           {renderNavItem(View.TASK_MANAGEMENT, 'Task Management', <ListTodo size={18} />, 'VIEW_TEACHER_TASKS')}
-
-          {renderNavItem(View.MCP_CONSOLE, 'MCP Console', <Cpu size={18} />, 'ACCESS_SQL_EDITOR')}
 
           <div className="mt-6 mb-2 text-xs font-semibold text-supabase-muted uppercase tracking-wider px-3 pb-2">
             Finance

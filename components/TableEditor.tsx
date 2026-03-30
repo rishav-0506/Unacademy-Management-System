@@ -251,8 +251,8 @@ const TableEditor: React.FC<TableEditorProps> = ({ onlyLive = false }) => {
              </div>
              <div className="hidden xs:block h-4 w-px bg-supabase-border"></div>
              <div className="flex items-center gap-1 sm:gap-2">
-                <button className="flex items-center gap-1.5 text-[10px] sm:text-xs text-supabase-muted hover:text-supabase-text px-1.5 sm:px-2 py-1 rounded hover:bg-supabase-hover transition-colors"><Filter size={12} sm:size={14} /> Filter</button>
-                <button className="flex items-center gap-1.5 text-[10px] sm:text-xs text-supabase-muted hover:text-supabase-text px-1.5 sm:px-2 py-1 rounded hover:bg-supabase-hover transition-colors"><ArrowUpDown size={12} sm:size={14} /> Sort</button>
+                <button className="flex items-center gap-1.5 text-[10px] sm:text-xs text-supabase-muted hover:text-supabase-text px-1.5 sm:px-2 py-1 rounded hover:bg-supabase-hover transition-colors"><Filter size={14} /> Filter</button>
+                <button className="flex items-center gap-1.5 text-[10px] sm:text-xs text-supabase-muted hover:text-supabase-text px-1.5 sm:px-2 py-1 rounded hover:bg-supabase-hover transition-colors"><ArrowUpDown size={14} /> Sort</button>
              </div>
          </div>
          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">

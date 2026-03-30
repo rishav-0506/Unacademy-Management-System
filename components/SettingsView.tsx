@@ -81,22 +81,46 @@ const SettingsView: React.FC = () => {
     try {
       const start = Date.now();
       
-      // 2. Supabase Client Checks
-      const authCheckPromise = currentSupabase.auth.getSession();
-      const queryPromise = currentSupabase.from('system_config').select('key').limit(1);
+      // 2. Direct REST API Check (faster, no internal retries)
+      const healthCheck = async () => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        
+        try {
+          const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+            headers: {
+              'apikey': currentSupabase.supabaseKey,
+              'Authorization': `Bearer ${currentSupabase.supabaseKey}`
+            },
+            signal: controller.signal
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.status === 503) {
+            throw new Error('Supabase project is paused or unavailable (503). Please unpause it in your Supabase dashboard.');
+          }
+          
+          if (!response.ok && response.status !== 404 && response.status !== 401 && response.status !== 400) {
+            throw new Error(`Server returned status ${response.status}`);
+          }
+          return true;
+        } catch (err: any) {
+          clearTimeout(timeoutId);
+          if (err.name === 'AbortError') {
+            throw new Error('Request aborted due to timeout');
+          }
+          throw err;
+        }
+      };
       
       // Race everything against the timeout
-      const results = await Promise.race([
-        Promise.all([authCheckPromise, queryPromise]),
+      await Promise.race([
+        healthCheck(),
         timeoutPromise
-      ]) as any;
+      ]);
       
-      const [authResult, queryResult] = results;
       setNetworkInfo({ reachable: true, latency: Date.now() - start });
-
-      if (queryResult.error && queryResult.error.code !== 'PGRST116') {
-        throw queryResult.error;
-      }
       
       setDbStatus('Connected');
       setDbError(null);

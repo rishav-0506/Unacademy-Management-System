@@ -19,7 +19,7 @@ interface Employee {
   created_at?: string;
 }
 
-type ProfileTab = 'overview' | 'document' | 'banking' | 'ledger' | 'work_progress';
+type ProfileTab = 'overview' | 'document' | 'work_progress';
 
 const EmployeesView: React.FC = () => {
   const { departments, designations, departmentDesignationMap } = useAuth();
@@ -43,7 +43,6 @@ const EmployeesView: React.FC = () => {
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [activeProfileTab, setActiveProfileTab] = useState<ProfileTab>('overview');
-  const [isEditingBanking, setIsEditingBanking] = useState(false);
 
   const [formData, setFormData] = useState<Partial<Employee>>({
     full_name: '',
@@ -228,90 +227,6 @@ const EmployeesView: React.FC = () => {
             </div>
           </div>
         );
-      case 'banking':
-        return (
-          <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
-             <div className="flex justify-between items-center">
-                <h3 className="text-sm font-black uppercase tracking-widest text-supabase-text">Banking Details</h3>
-                <button 
-                  onClick={() => setIsEditingBanking(!isEditingBanking)}
-                  className="text-supabase-muted hover:text-supabase-green transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-widest"
-                >
-                  {isEditingBanking ? <><X size={14}/> Cancel</> : <><Edit2 size={14}/> Modify Records</>}
-                </button>
-             </div>
-             <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 sm:p-8 max-w-2xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-supabase-green/5 rounded-full -mr-16 -mt-16 group-hover:bg-supabase-green/10 transition-all"></div>
-                <div className="space-y-6">
-                  {[
-                    { label: 'Bank Name', value: 'Global Commerce Bank', key: 'bank_name' },
-                    { label: 'Account Holder', value: emp.full_name.toUpperCase(), key: 'holder' },
-                    { label: 'Account Number', value: '**** **** 9210', key: 'acc' },
-                    { label: 'SWIFT / BIC', value: 'GCMB US 33', key: 'swift' }
-                  ].map((field) => (
-                    <div key={field.label} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-supabase-border/40 pb-4">
-                      <span className="text-[10px] text-supabase-muted font-black uppercase tracking-widest">{field.label}</span>
-                      {isEditingBanking ? (
-                        <input defaultValue={field.value} className="bg-supabase-sidebar border border-supabase-border rounded px-3 py-1 text-sm text-supabase-text focus:border-supabase-green outline-none w-full sm:w-64" />
-                      ) : (
-                        <span className="text-sm font-black text-supabase-text font-mono">{field.value}</span>
-                      )}
-                    </div>
-                  ))}
-                  {isEditingBanking && (
-                    <div className="pt-4 flex justify-end">
-                      <button className="bg-supabase-green text-black px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Save size={14} /> Update Financials
-                      </button>
-                    </div>
-                  )}
-                </div>
-             </div>
-          </div>
-        );
-      case 'ledger':
-        return (
-          <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black uppercase tracking-widest text-supabase-text">Payroll & Expense Ledger</h3>
-              <div className="flex gap-2">
-                 <button className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all"><Filter size={16}/></button>
-                 <button className="p-2 bg-supabase-panel border border-supabase-border rounded-lg text-supabase-muted hover:text-supabase-green transition-all"><Download size={16}/></button>
-              </div>
-            </div>
-            <div className="bg-supabase-panel border border-supabase-border rounded-2xl overflow-hidden shadow-xl overflow-x-auto scrollbar-hide">
-              <table className="min-w-[600px] w-full text-left border-collapse">
-                <thead className="bg-supabase-sidebar">
-                  <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-supabase-muted border-b border-supabase-border">
-                    <th className="px-8 py-5">Transaction ID</th>
-                    <th className="px-8 py-5">Category</th>
-                    <th className="px-8 py-5">Date</th>
-                    <th className="px-8 py-5 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-supabase-border/50">
-                  {[
-                    { id: 'TXN-9021-1', cat: 'Salary Disbursement', date: '28 Feb 2025', amt: '$4,200.00' },
-                    { id: 'TXN-9021-2', cat: 'Travel Reimbursement', date: '15 Feb 2025', amt: '$340.50' },
-                    { id: 'TXN-9021-3', cat: 'Bonus / Incentive', date: '01 Feb 2025', amt: '$1,000.00' },
-                    { id: 'TXN-9021-4', cat: 'Salary Disbursement', date: '28 Jan 2025', amt: '$4,200.00' }
-                  ].map((row) => (
-                    <tr key={row.id} className="hover:bg-supabase-hover/40 transition-colors group cursor-default">
-                      <td className="px-8 py-4 font-mono text-xs text-supabase-muted group-hover:text-supabase-text transition-colors">{row.id}</td>
-                      <td className="px-8 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${row.cat.includes('Salary') ? 'bg-supabase-green/10 text-supabase-green' : 'bg-blue-500/10 text-blue-400'}`}>
-                          {row.cat}
-                        </span>
-                      </td>
-                      <td className="px-8 py-4 text-xs text-supabase-muted uppercase font-bold tracking-tighter">{row.date}</td>
-                      <td className="px-8 py-4 text-sm font-black text-supabase-text text-right">{row.amt}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
       case 'work_progress':
         return (
           <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
@@ -404,7 +319,7 @@ const EmployeesView: React.FC = () => {
     <div className="h-full flex flex-col animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="min-h-[4rem] border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shrink-0 gap-4 sm:gap-0">
         <button 
-          onClick={() => { setSelectedEmployeeId(null); setActiveProfileTab('overview'); setIsEditingBanking(false); }}
+          onClick={() => { setSelectedEmployeeId(null); setActiveProfileTab('overview'); }}
           className="flex items-center gap-2 text-supabase-muted hover:text-supabase-text transition-colors text-xs font-black uppercase tracking-widest"
         >
           <ArrowLeft size={16} /> Back to Directory
@@ -471,13 +386,11 @@ const EmployeesView: React.FC = () => {
              {[
                { id: 'overview', label: 'Overview', icon: User },
                { id: 'document', label: 'Documents', icon: FileText },
-               { id: 'banking', label: 'Banking', icon: CreditCard },
-               { id: 'ledger', label: 'Ledger', icon: Book },
                { id: 'work_progress', label: 'Work Progress', icon: Activity }
              ].map((tab) => (
                <button 
                  key={tab.id}
-                 onClick={() => { setActiveProfileTab(tab.id as ProfileTab); setIsEditingBanking(false); }}
+                 onClick={() => { setActiveProfileTab(tab.id as ProfileTab); }}
                  className={`pb-4 text-[10px] font-black uppercase tracking-[0.25em] flex items-center gap-2 transition-all relative whitespace-nowrap ${activeProfileTab === tab.id ? 'text-supabase-green' : 'text-supabase-muted hover:text-supabase-text'}`}
                >
                  <tab.icon size={14} />

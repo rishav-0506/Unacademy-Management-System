@@ -230,7 +230,7 @@ const AdmissionView: React.FC = () => {
                                             </div>
                                         </div>
                                         <h3 className="text-lg font-bold text-supabase-text mb-1">{reg.student_name}</h3>
-                                        <p className="text-xs text-supabase-muted mb-4 uppercase tracking-wider">Class: {reg.class_interested}</p>
+                                        <p className="text-xs text-supabase-muted mb-4 uppercase tracking-wider">Class ID: {reg.class_id}</p>
                                         
                                         <div className="space-y-2 mb-6">
                                             <div className="flex items-center gap-2 text-xs text-supabase-muted">

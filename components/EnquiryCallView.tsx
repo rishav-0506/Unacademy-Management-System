@@ -356,7 +356,7 @@ const EnquiryCallView: React.FC = () => {
             <div className="min-h-[4rem] h-auto sm:h-16 border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 gap-3 sm:gap-0 shrink-0 z-10 shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-supabase-green/10 rounded-lg shadow-inner">
-                        <MessageSquarePlus className="text-supabase-green" size={18} sm:size={20} />
+                        <MessageSquarePlus className="text-supabase-green" size={20} />
                     </div>
                     <div>
                         <h1 className="text-sm font-bold text-supabase-text uppercase tracking-widest leading-none">Lead Engagement Center</h1>
