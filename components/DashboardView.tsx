@@ -140,22 +140,22 @@ const DashboardView: React.FC = () => {
         animate={{ y: 0, opacity: 1 }}
         className="flex flex-col lg:flex-row lg:items-center justify-between gap-6"
       >
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 sm:gap-6">
           <motion.div 
             whileHover={{ scale: 1.05, rotate: 2 }}
-            className="w-20 h-20 bg-supabase-panel border border-supabase-border rounded-2xl flex items-center justify-center shadow-xl relative overflow-hidden group"
+            className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-supabase-panel border border-supabase-border rounded-2xl flex items-center justify-center shadow-xl relative overflow-hidden group"
           >
-            <div className="relative z-10 text-supabase-green font-black text-3xl">U</div>
+            <div className="relative z-10 text-supabase-green font-black text-2xl sm:text-3xl">U</div>
           </motion.div>
-          <div>
-            <h1 className="text-3xl font-black text-supabase-text uppercase tracking-tighter flex items-center gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-black text-supabase-text uppercase tracking-tighter flex flex-wrap items-center gap-2 sm:gap-3">
               Dashboard
-              <span className="text-[10px] px-2 py-0.5 bg-supabase-green/10 text-supabase-green border border-supabase-green/20 rounded-full font-bold tracking-widest">v2.0 LIVE</span>
+              <span className="text-[10px] px-2 py-0.5 bg-supabase-green/10 text-supabase-green border border-supabase-green/20 rounded-full font-bold tracking-widest whitespace-nowrap">v2.0 LIVE</span>
             </h1>
-            <p className="text-xs text-supabase-muted mt-1 font-bold uppercase tracking-[0.2em] flex items-center gap-2">
-              <Activity size={12} className="text-supabase-green" />
-              Real-time Academic Intelligence & Management
-            </p>
+            <div className="text-[10px] sm:text-xs text-supabase-muted mt-1 sm:mt-2 font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] flex items-start sm:items-center gap-2">
+              <Activity size={12} className="text-supabase-green shrink-0 mt-0.5 sm:mt-0" />
+              <span className="leading-snug sm:leading-normal">Real-time Academic Intelligence & Management</span>
+            </div>
           </div>
         </div>
         

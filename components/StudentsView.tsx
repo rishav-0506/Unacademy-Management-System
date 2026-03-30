@@ -32,6 +32,8 @@ const StudentsView: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Partial<Student> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
 
   // Delete Confirmation State
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -94,27 +96,17 @@ const StudentsView: React.FC = () => {
     const parent = parents.find(p => p.id === student.parent_id);
     setSearchTermParent(parent ? parent.full_name : '');
     setShowAddParentForm(false);
+    setSelectedPhotoFile(null);
+    setPhotoPreviewUrl(null);
     setIsEditModalOpen(true);
   };
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !editingStudent) return;
 
-    setIsUploading(true);
-    try {
-      const result = await scheduleService.uploadStudentPhoto(file);
-      if (result.success && result.url) {
-        setEditingStudent({ ...editingStudent, profile_photo_url: result.url });
-        showToast("Photo uploaded successfully", "success");
-      } else {
-        throw new Error(result.error || "Upload failed");
-      }
-    } catch (error: any) {
-      showToast("Photo upload failed: " + error.message, "error");
-    } finally {
-      setIsUploading(false);
-    }
+    setSelectedPhotoFile(file);
+    setPhotoPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -123,6 +115,22 @@ const StudentsView: React.FC = () => {
 
     setIsSaving(true);
     try {
+      let finalPhotoUrl = editingStudent.profile_photo_url;
+      
+      if (selectedPhotoFile) {
+        setIsUploading(true);
+        const result = await scheduleService.uploadStudentPhoto(selectedPhotoFile);
+        if (result.success && result.url) {
+          finalPhotoUrl = result.url;
+        } else {
+          showToast("Photo upload failed: " + result.error, "error");
+          setIsUploading(false);
+          setIsSaving(false);
+          return;
+        }
+        setIsUploading(false);
+      }
+
       let finalParentId = editingStudent.parent_id;
       let finalGuardianName = editingStudent.guardian_name;
       let finalContactNumber = editingStudent.contact_number;
@@ -161,7 +169,7 @@ const StudentsView: React.FC = () => {
         date_of_birth: editingStudent.date_of_birth,
         gender: editingStudent.gender,
         status: editingStudent.status,
-        profile_photo_url: editingStudent.profile_photo_url
+        profile_photo_url: finalPhotoUrl
       };
 
       if (editingStudent.id) {
@@ -529,9 +537,9 @@ const StudentsView: React.FC = () => {
                 <div className="flex flex-col items-center justify-center p-4 bg-supabase-bg/30 rounded-2xl border border-dashed border-supabase-border">
                   <div className="relative group">
                     <div className="w-24 h-24 rounded-3xl bg-supabase-green/10 flex items-center justify-center text-supabase-green font-bold text-3xl border-2 border-supabase-green/20 overflow-hidden">
-                      {editingStudent.profile_photo_url ? (
+                      {(photoPreviewUrl || editingStudent.profile_photo_url) ? (
                         <img 
-                          src={editingStudent.profile_photo_url} 
+                          src={photoPreviewUrl || editingStudent.profile_photo_url} 
                           alt="Profile" 
                           className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
@@ -546,7 +554,7 @@ const StudentsView: React.FC = () => {
                         className="hidden" 
                         accept="image/*"
                         onChange={handlePhotoUpload}
-                        disabled={isUploading}
+                        disabled={isUploading || isSaving}
                       />
                       {isUploading ? (
                         <Loader2 className="animate-spin text-white" size={24} />
