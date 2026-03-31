@@ -41,6 +41,8 @@ const ProfileView = lazy(() => import('./components/ProfileView'));
 const FeeCollectionView = lazy(() => import('./components/FeeCollectionView'));
 const FeeStructureView = lazy(() => import('./components/FeeStructureView'));
 const BillingView = lazy(() => import('./components/BillingView'));
+const NewCounsellingView = lazy(() => import('./components/NewCounsellingView'));
+const CounsellingLogView = lazy(() => import('./components/CounsellingLogView'));
 const LoginView = lazy(() => import('./components/LoginView'));
 
 const ViewLoader = () => (
@@ -121,6 +123,8 @@ const MainLayout: React.FC<{
             case View.FEE_COLLECTION: return <FeeCollectionView />;
             case View.FEE_STRUCTURE: return <FeeStructureView />;
             case View.BILLING: return <BillingView />;
+            case View.NEW_COUNSELLING: return <NewCounsellingView />;
+            case View.COUNSELLING_LOG: return <CounsellingLogView />;
             default: return <DashboardView />;
           }
         })()}

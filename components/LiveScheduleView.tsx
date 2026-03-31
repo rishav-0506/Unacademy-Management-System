@@ -3,6 +3,7 @@ import { Monitor, Clock, User, Loader2, Calendar, Edit2, Plus, X, Save, Trash2, 
 import { ClassSession, Teacher, ClassInfo } from '../types';
 import { scheduleService } from '../services/scheduleService';
 import { useToast } from '../context/ToastContext';
+import ConfirmModal from './ConfirmModal';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -43,6 +44,7 @@ const LiveScheduleView: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [availableSubjects, setAvailableSubjects] = useState<{id: string, name: string}[]>([]);
     const [availableTeachers, setAvailableTeachers] = useState<Teacher[]>([]);
     const [allClassesInfo, setAllClassesInfo] = useState<ClassInfo[]>([]);
@@ -157,7 +159,6 @@ const LiveScheduleView: React.FC = () => {
 
     const handleDelete = async () => {
         if (!currentSchedule || !editingSessionId) return;
-        if (!confirm("Are you sure you want to delete this class?")) return;
         
         setIsSaving(true);
         try {
@@ -168,6 +169,7 @@ const LiveScheduleView: React.FC = () => {
             await fetchSchedules();
             
             setIsModalOpen(false);
+            setIsDeleteConfirmOpen(false);
             showToast("Class deleted successfully", "success");
         } catch (error) { 
             console.error("Delete error:", error);
@@ -177,9 +179,7 @@ const LiveScheduleView: React.FC = () => {
         }
     };
 
-    const filteredTeachers = availableTeachers.filter(teacher => 
-        formData.title && teacher.subjects && teacher.subjects.includes(formData.title)
-    );
+    const filteredTeachers = availableTeachers;
 
     if (loading && schedules.length === 0) {
         return (
@@ -391,7 +391,7 @@ const LiveScheduleView: React.FC = () => {
 
                             <div className="pt-4 flex flex-col sm:flex-row justify-between gap-3 border-t border-supabase-border/50">
                                 {editingSessionId && (
-                                    <button type="button" onClick={handleDelete} className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 rounded-lg flex items-center justify-center gap-2 transition-all">
+                                    <button type="button" onClick={() => setIsDeleteConfirmOpen(true)} className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 rounded-lg flex items-center justify-center gap-2 transition-all">
                                         <Trash2 size={16} /> Delete Session
                                     </button>
                                 )}
@@ -407,6 +407,14 @@ const LiveScheduleView: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                isOpen={isDeleteConfirmOpen}
+                title="Delete Session"
+                message="Are you sure you want to delete this class session? This action cannot be undone."
+                onConfirm={handleDelete}
+                onCancel={() => setIsDeleteConfirmOpen(false)}
+            />
         </div>
     );
 };

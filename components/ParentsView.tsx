@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Users, Search, Filter, Plus, Loader2, Mail, Phone, User, MapPin, Calendar, MoreVertical, Edit2, Trash2, Download, X, ArrowLeft, Shield, Briefcase, Save } from 'lucide-react';
+import { motion } from 'motion/react';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../context/ToastContext';
 import { Parent } from '../types';
@@ -233,15 +234,24 @@ const ParentsView: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-supabase-bg">
       <div className="p-4 sm:p-6 border-b border-supabase-border bg-supabase-panel/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-supabase-text uppercase tracking-tighter flex items-center gap-3">
-              <Users className="text-supabase-green" size={24} />
-              Parent Directory
-            </h1>
-            <p className="text-[10px] sm:text-xs text-supabase-muted mt-1 font-medium uppercase tracking-wider">
-              Managing {filteredParents.length} Total Parents
-            </p>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <motion.div 
+              whileHover={{ scale: 1.05, rotate: 2 }}
+              className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-supabase-panel border border-supabase-border rounded-2xl flex items-center justify-center shadow-xl relative overflow-hidden group"
+            >
+              <div className="relative z-10 text-supabase-green font-black text-2xl sm:text-3xl">P</div>
+            </motion.div>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-black text-supabase-text uppercase tracking-tighter flex flex-wrap items-center gap-2 sm:gap-3">
+                Parents
+                <span className="text-[10px] px-2 py-0.5 bg-supabase-green/10 text-supabase-green border border-supabase-green/20 rounded-full font-bold tracking-widest whitespace-nowrap">DIRECTORY</span>
+              </h1>
+              <div className="text-[10px] sm:text-xs text-supabase-muted mt-1 sm:mt-2 font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] flex items-start sm:items-center gap-2">
+                <Users size={12} className="text-supabase-green shrink-0 mt-0.5 sm:mt-0" />
+                <span className="leading-snug sm:leading-normal">Managing {filteredParents.length} Total Parents</span>
+              </div>
+            </div>
           </div>
           
           <div className="flex items-center gap-2">

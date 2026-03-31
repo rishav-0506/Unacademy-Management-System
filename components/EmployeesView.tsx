@@ -1,10 +1,12 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { Plus, Search, Trash2, Mail, Phone, Briefcase, User, Edit2, Loader2, Building2, Shield, X, Award, ChevronRight, Filter, BookOpen, ArrowLeft, Calendar, Fingerprint, Globe, FileText, CreditCard, Book, Activity, Download, Upload, Check, Save, Scale } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { supabase } from '../services/supabaseClient';
 import { scheduleService } from '../services/scheduleService';
+import ConfirmModal from './ConfirmModal';
 
 interface Employee {
   id: string;
@@ -59,6 +61,13 @@ const EmployeesView: React.FC = () => {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [newTaskData, setNewTaskData] = useState({ title: '', description: '', due_date: '', priority: 'medium' });
 
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
   const [formData, setFormData] = useState<Partial<Employee>>({
     full_name: '',
     email: '',
@@ -67,7 +76,7 @@ const EmployeesView: React.FC = () => {
     department: '',
     designation: '',
     salary_grade_id: '',
-    status: 'Inactive'
+    status: 'inactive'
   });
 
   useEffect(() => {
@@ -140,20 +149,27 @@ const EmployeesView: React.FC = () => {
 
   const handleDeleteTask = async (taskId: string) => {
     if (!supabase || !selectedEmployeeId) return;
-    if (!window.confirm("Are you sure you want to delete this task?")) return;
     
-    try {
-      const { error } = await supabase
-        .from('personnel_tasks')
-        .delete()
-        .eq('id', taskId);
-      
-      if (error) throw error;
-      showToast("Task deleted successfully", "success");
-      fetchEmployeeTasks(selectedEmployeeId);
-    } catch (e: any) {
-      showToast("Deletion failed: " + e.message, "error");
-    }
+    setConfirmConfig({
+      title: "Delete Task",
+      message: "Are you sure you want to delete this task? This action cannot be undone.",
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase
+            .from('personnel_tasks')
+            .delete()
+            .eq('id', taskId);
+          
+          if (error) throw error;
+          showToast("Task deleted successfully", "success");
+          fetchEmployeeTasks(selectedEmployeeId);
+        } catch (e: any) {
+          showToast("Deletion failed: " + e.message, "error");
+        }
+        setIsConfirmOpen(false);
+      }
+    });
+    setIsConfirmOpen(true);
   };
 
   const fetchEmployees = async () => {
@@ -217,18 +233,25 @@ const EmployeesView: React.FC = () => {
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
     if (!supabase) return;
-    if (!window.confirm(`Are you sure you want to remove ${name} from the matrix?`)) return;
-
-    try {
-      const { error } = await supabase.from('employees').delete().eq('id', id);
-      if (error) throw error;
-      
-      showToast(`${name} removed from registry`, 'success');
-      if (selectedEmployeeId === id) setSelectedEmployeeId(null);
-      fetchEmployees();
-    } catch (err: any) {
-      showToast("Deletion failed: " + err.message, 'error');
-    }
+    
+    setConfirmConfig({
+      title: "Remove Personnel",
+      message: `Are you sure you want to remove ${name} from the matrix? This will permanently delete their record.`,
+      onConfirm: async () => {
+        try {
+          const { error } = await supabase.from('employees').delete().eq('id', id);
+          if (error) throw error;
+          
+          showToast(`${name} removed from registry`, 'success');
+          if (selectedEmployeeId === id) setSelectedEmployeeId(null);
+          fetchEmployees();
+        } catch (err: any) {
+          showToast("Deletion failed: " + err.message, 'error');
+        }
+        setIsConfirmOpen(false);
+      }
+    });
+    setIsConfirmOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -568,7 +591,7 @@ const EmployeesView: React.FC = () => {
                 <div className="w-32 h-32 rounded-[2.5rem] bg-supabase-sidebar border-2 border-supabase-border flex items-center justify-center text-5xl font-black text-supabase-muted shadow-2xl group-hover:border-supabase-green transition-all">
                   {emp.full_name.charAt(0)}
                 </div>
-                <div className={`absolute -bottom-2 -right-2 px-3 py-1 rounded-full border-4 border-supabase-panel text-[10px] font-black uppercase tracking-widest shadow-lg ${emp.status === 'Active' ? 'bg-supabase-green text-black' : 'bg-red-500 text-white'}`}>
+                <div className={`absolute -bottom-2 -right-2 px-3 py-1 rounded-full border-4 border-supabase-panel text-[10px] font-black uppercase tracking-widest shadow-lg ${emp.status?.toLowerCase() === 'active' ? 'bg-supabase-green text-black' : 'bg-red-500 text-white'}`}>
                   {emp.status}
                 </div>
               </div>
@@ -631,31 +654,42 @@ const EmployeesView: React.FC = () => {
         renderProfile(selectedEmployee)
       ) : (
         <>
-          <div className="min-h-[4rem] border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 shrink-0 shadow-sm z-10 gap-4 sm:gap-0">
-            <div className="flex items-center gap-3">
-                 <div className="p-2 bg-supabase-green/10 rounded-lg shadow-inner">
-                    <Briefcase className="text-supabase-green" size={20} />
-                 </div>
-                 <div>
-                    <h1 className="text-sm font-black text-supabase-text leading-none uppercase tracking-widest">Personnel Matrix</h1>
-                    <p className="text-[10px] text-supabase-muted mt-1 uppercase tracking-tighter">Human Resource Core</p>
-                 </div>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                 <div className="relative group flex-1 sm:flex-none">
-                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green transition-colors" />
-                    <input 
-                        type="text" 
-                        placeholder="Search..." 
-                        value={searchTerm} 
-                        onChange={(e) => setSearchTerm(e.target.value)} 
-                        className="bg-supabase-sidebar border border-supabase-border rounded-full py-1.5 pl-9 pr-4 text-sm text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-72 transition-all shadow-inner" 
-                    />
+          <div className="p-4 sm:p-6 border-b border-supabase-border bg-supabase-panel/50 backdrop-blur-sm sticky top-0 z-10">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+              <div className="flex items-center gap-4 sm:gap-6">
+                <motion.div 
+                  whileHover={{ scale: 1.05, rotate: 2 }}
+                  className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-supabase-panel border border-supabase-border rounded-2xl flex items-center justify-center shadow-xl relative overflow-hidden group"
+                >
+                  <div className="relative z-10 text-supabase-green font-black text-2xl sm:text-3xl">E</div>
+                </motion.div>
+                <div className="min-w-0">
+                  <h1 className="text-2xl sm:text-3xl font-black text-supabase-text uppercase tracking-tighter flex flex-wrap items-center gap-2 sm:gap-3">
+                    Employees
+                    <span className="text-[10px] px-2 py-0.5 bg-supabase-green/10 text-supabase-green border border-supabase-green/20 rounded-full font-bold tracking-widest whitespace-nowrap">DIRECTORY</span>
+                  </h1>
+                  <div className="text-[10px] sm:text-xs text-supabase-muted mt-1 sm:mt-2 font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] flex items-start sm:items-center gap-2">
+                    <Briefcase size={12} className="text-supabase-green shrink-0 mt-0.5 sm:mt-0" />
+                    <span className="leading-snug sm:leading-normal">Human Resource Core</span>
+                  </div>
                 </div>
-                <button onClick={(e) => handleOpenModal(e)} className="bg-supabase-green text-black p-2 sm:px-4 sm:py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/10 flex items-center gap-2 shrink-0" title="Enroll Person">
-                    <Plus size={14} />
-                    <span className="hidden sm:inline">Enroll Person</span>
-                </button>
+              </div>
+              <div className="flex items-center gap-2 sm:gap-4 w-full lg:w-auto">
+                   <div className="relative group flex-1 sm:flex-none">
+                      <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green transition-colors" />
+                      <input 
+                          type="text" 
+                          placeholder="Search..." 
+                          value={searchTerm} 
+                          onChange={(e) => setSearchTerm(e.target.value)} 
+                          className="bg-supabase-sidebar border border-supabase-border rounded-full py-1.5 pl-9 pr-4 text-sm text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-72 transition-all shadow-inner" 
+                      />
+                  </div>
+                  <button onClick={(e) => handleOpenModal(e)} className="bg-supabase-green text-black p-2 sm:px-4 sm:py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/10 flex items-center gap-2 shrink-0" title="Enroll Person">
+                      <Plus size={14} />
+                      <span className="hidden sm:inline">Enroll Person</span>
+                  </button>
+              </div>
             </div>
           </div>
 
@@ -691,7 +725,7 @@ const EmployeesView: React.FC = () => {
                                         <div className="w-14 h-14 rounded-2xl bg-supabase-sidebar border border-supabase-border flex items-center justify-center text-2xl font-black text-supabase-muted group-hover:text-supabase-green transition-all shadow-inner">
                                             {emp.full_name ? emp.full_name.charAt(0) : '?'}
                                         </div>
-                                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-supabase-panel shadow-sm ${emp.status === 'Active' ? 'bg-supabase-green' : 'bg-red-500'}`}></div>
+                                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-supabase-panel shadow-sm ${emp.status?.toLowerCase() === 'active' ? 'bg-supabase-green' : 'bg-red-500'}`}></div>
                                      </div>
                                      <div className="min-w-0 flex-1">
                                          <h3 className="font-black text-supabase-text truncate tracking-tight text-base leading-tight uppercase">{emp.full_name}</h3>
@@ -842,6 +876,13 @@ const EmployeesView: React.FC = () => {
               </div>
           </div>
       )}
+      <ConfirmModal
+        isOpen={isConfirmOpen}
+        title={confirmConfig?.title || 'Confirm Action'}
+        message={confirmConfig?.message || 'Are you sure you want to proceed?'}
+        onConfirm={confirmConfig?.onConfirm || (() => setIsConfirmOpen(false))}
+        onCancel={() => setIsConfirmOpen(false)}
+      />
     </div>
   );
 };

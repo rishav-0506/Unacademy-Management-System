@@ -98,7 +98,11 @@ export const McpService = {
     }
     
     if (uri.includes('teachers')) {
-      const { data } = await supabase.from('teachers').select('*');
+      const { data } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('department', 'Academic')
+        .eq('designation', 'Teacher');
       return { contents: [{ uri, text: JSON.stringify(data) }] };
     }
 
@@ -175,7 +179,7 @@ export const McpService = {
     try {
       const [classes, teachers, schedules] = await Promise.all([
         supabase.from('classes').select('*', { count: 'exact', head: true }),
-        supabase.from('teachers').select('*', { count: 'exact', head: true }),
+        supabase.from('employees').select('*', { count: 'exact', head: true }).eq('department', 'Academic').eq('designation', 'Teacher'),
         supabase.from('weekly_schedules').select('*', { count: 'exact', head: true }).eq('status', 'true')
       ]);
 

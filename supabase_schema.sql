@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS employees (
     salary_grade_id TEXT,
     base_salary NUMERIC DEFAULT 0,
     allowances NUMERIC DEFAULT 0,
+    subjects TEXT[],
+    profile_photo_url TEXT,
     status TEXT DEFAULT 'active',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -258,6 +260,24 @@ CREATE TABLE IF NOT EXISTS student_feedback (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS counselling_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date DATE NOT NULL,
+    student_name TEXT NOT NULL,
+    contact_no TEXT,
+    gender TEXT,
+    date_of_birth DATE,
+    current_class TEXT,
+    parents_name TEXT,
+    email TEXT,
+    address TEXT,
+    parent_contact_no TEXT,
+    occupation TEXT,
+    course_interest JSONB DEFAULT '{}'::jsonb,
+    additional_information JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Enable RLS for all tables
 ALTER TABLE system_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_users ENABLE ROW LEVEL SECURITY;
@@ -278,6 +298,11 @@ ALTER TABLE user_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE student_feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE parents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE counselling_records ENABLE ROW LEVEL SECURITY;
+
+-- Create permissive policies for all tables (Public access for demo/internal system)
+DROP POLICY IF EXISTS "Allow all on counselling_records" ON counselling_records;
+CREATE POLICY "Allow all on counselling_records" ON counselling_records FOR ALL USING (true) WITH CHECK (true);
 
 -- Create permissive policies for all tables (Public access for demo/internal system)
 DROP POLICY IF EXISTS "Allow all on system_config" ON system_config;

@@ -74,7 +74,7 @@ const TeacherTaskView: React.FC = () => {
   const filteredTeachers = useMemo(() => {
     return teachers.filter(t => 
       t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.subjects?.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
+      (Array.isArray(t.subjects) && t.subjects.some(s => s.toLowerCase().includes(searchTerm.toLowerCase())))
     );
   }, [teachers, searchTerm]);
 
@@ -141,7 +141,7 @@ const TeacherTaskView: React.FC = () => {
                   <div className="min-w-0 flex-1">
                     <div className={`text-sm font-bold truncate transition-colors ${selectedTeacherId === t.id ? 'text-supabase-green' : 'text-supabase-text'}`}>{t.name}</div>
                     <div className="text-[10px] text-supabase-muted truncate font-mono uppercase tracking-tighter mt-0.5 opacity-60">
-                        {t.subjects?.join(' • ')}
+                        {Array.isArray(t.subjects) ? t.subjects.join(' • ') : ''}
                     </div>
                   </div>
                 </button>
@@ -184,7 +184,7 @@ const TeacherTaskView: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-supabase-muted text-xs font-mono">
                     <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-supabase-green"></div>{teacherSchedule.length} Active Sessions</div>
                     <div className="opacity-40">|</div>
-                    <div>Expertise: {selectedTeacher?.subjects?.join(', ')}</div>
+                    <div>Expertise: {Array.isArray(selectedTeacher?.subjects) ? selectedTeacher.subjects.join(', ') : ''}</div>
                   </div>
                 </div>
               </div>

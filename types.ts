@@ -37,7 +37,9 @@ export enum View {
   FEE_COLLECTION = 'FEE_COLLECTION',
   FEE_STRUCTURE = 'FEE_STRUCTURE',
   BILLING = 'BILLING',
-  PARENTS = 'PARENTS'
+  PARENTS = 'PARENTS',
+  NEW_COUNSELLING = 'NEW_COUNSELLING',
+  COUNSELLING_LOG = 'COUNSELLING_LOG'
 }
 
 export type EducationLevel = 'junior' | 'senior' | 'all';
@@ -110,6 +112,8 @@ export interface Employee {
   designation?: string;
   salary_grade_id?: string;
   status: string;
+  subjects?: string[];
+  profile_photo_url?: string;
   created_at?: string;
 }
 
@@ -138,5 +142,34 @@ export interface Student {
   gender?: string;
   status?: 'active' | 'inactive';
   profile_photo_url?: string;
+  created_at?: string;
+}
+
+export interface CounsellingRecord {
+  id: string;
+  date: string;
+  student_name: string;
+  contact_no: string;
+  gender: string;
+  date_of_birth: string;
+  current_class: string;
+  parents_name: string;
+  email: string;
+  address: string;
+  parent_contact_no: string;
+  occupation: string;
+  course_interest: {
+    current_education_level: string;
+    school_name: string;
+    preferred_course: string;
+    percentage_or_cgpa: string;
+    preferred_batch_timing: string;
+  };
+  additional_information: {
+    previous_coaching: string;
+    heard_about: string;
+    concerns_or_queries: string;
+  };
+  created_by?: string;
   created_at?: string;
 }

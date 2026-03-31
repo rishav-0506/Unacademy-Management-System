@@ -147,12 +147,28 @@ export const scheduleService = {
   async getTeachers(): Promise<Teacher[]> {
     if (!supabase) return [];
     try {
-        const { data, error } = await supabase.from('teachers').select('*').order('name', { ascending: true });
+        const { data, error } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('department', 'Academic')
+          .eq('designation', 'Teacher')
+          .order('full_name', { ascending: true });
+          
         if (error) {
-          console.error("Supabase Error fetching teachers:", error.message, error.details);
+          console.error("Supabase Error fetching teachers from employees:", error.message, error.details);
           throw error;
         }
-        return data as Teacher[];
+
+        return (data || []).map(emp => ({
+          id: emp.id,
+          name: emp.full_name,
+          email: emp.email,
+          phone: emp.mobile,
+          subjects: Array.isArray(emp.subjects) ? emp.subjects : [],
+          profile_photo_url: emp.profile_photo_url,
+          status: emp.status as 'active' | 'inactive',
+          created_at: emp.created_at
+        }));
     } catch (err) { 
         console.error("getTeachers failed:", err);
         return []; 
@@ -189,7 +205,17 @@ export const scheduleService = {
   async addTeacher(teacher: Omit<Teacher, 'id' | 'created_at'>): Promise<{success: boolean, error?: string}> {
       if (!supabase) return { success: false, error: 'No database connection' };
       try {
-          const { error } = await supabase.from('teachers').insert([{ ...teacher, status: 'active' }]);
+          const { error } = await supabase.from('employees').insert([{ 
+              full_name: teacher.name,
+              email: teacher.email,
+              mobile: teacher.phone,
+              subjects: teacher.subjects,
+              profile_photo_url: teacher.profile_photo_url,
+              status: teacher.status || 'active',
+              department: 'Academic',
+              designation: 'Teacher',
+              job_role: 'Teacher'
+          }]);
           if (error) throw error;
           return { success: true };
       } catch (e: any) { return { success: false, error: e.message }; }
@@ -198,11 +224,11 @@ export const scheduleService = {
   async updateTeacher(teacher: Teacher): Promise<{success: boolean, error?: string}> {
       if (!supabase) return { success: false, error: 'No database connection' };
       try {
-          const { error } = await supabase.from('teachers').update({
-              name: teacher.name,
+          const { error } = await supabase.from('employees').update({
+              full_name: teacher.name,
               email: teacher.email,
               subjects: teacher.subjects,
-              phone: teacher.phone,
+              mobile: teacher.phone,
               profile_photo_url: teacher.profile_photo_url,
               status: teacher.status
           }).eq('id', teacher.id);
@@ -214,7 +240,7 @@ export const scheduleService = {
   async deleteTeacher(id: string): Promise<{success: boolean, error?: string}> {
       if (!supabase) return { success: false, error: 'No database connection' };
       try {
-          const { error } = await supabase.from('teachers').delete().eq('id', id);
+          const { error } = await supabase.from('employees').delete().eq('id', id);
           if (error) throw error;
           return { success: true };
       } catch (e: any) { return { success: false, error: e.message }; }

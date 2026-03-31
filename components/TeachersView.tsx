@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Plus, Search, Trash2, Mail, Phone, Briefcase, User, GraduationCap, X, Loader2, Check, LayoutGrid, List, Edit2, Camera, Upload, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Teacher } from '../types';
 import { scheduleService } from '../services/scheduleService';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import ConfirmModal from './ConfirmModal';
 
 const TeachersView: React.FC = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -13,6 +15,8 @@ const TeachersView: React.FC = () => {
   const [availableSubjects, setAvailableSubjects] = useState<{id: string, name: string}[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [teacherToDelete, setTeacherToDelete] = useState<{ id: string; name: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -70,7 +74,7 @@ const TeachersView: React.FC = () => {
       setFormData({
           name: teacher.name,
           email: teacher.email,
-          subjects: teacher.subjects || [],
+          subjects: Array.isArray(teacher.subjects) ? teacher.subjects : [],
           phone: teacher.phone || '',
           status: teacher.status || 'active',
           profile_photo_url: teacher.profile_photo_url || ''
@@ -123,13 +127,24 @@ const TeachersView: React.FC = () => {
       setIsSubmitting(false);
   };
 
-  const handleDelete = async (id: string, name: string) => {
+  const handleDeleteClick = (id: string, name: string) => {
       if (!canManage) return;
-      if(confirm(`Are you sure you want to delete ${name}?`)) {
-          const { success, error } = await scheduleService.deleteTeacher(id);
-          if (success) { showToast('Teacher removed', 'success'); fetchTeachers(); }
-          else { showToast(`Failed: ${error}`, 'error'); }
+      setTeacherToDelete({ id, name });
+      setIsDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+      if (!teacherToDelete) return;
+      const { id, name } = teacherToDelete;
+      const { success, error } = await scheduleService.deleteTeacher(id);
+      if (success) {
+          showToast(`Teacher '${name}' removed`, 'success');
+          fetchTeachers();
+      } else {
+          showToast(`Failed: ${error}`, 'error');
       }
+      setIsDeleteConfirmOpen(false);
+      setTeacherToDelete(null);
   };
 
   const toggleSubject = (subjectName: string) => {
@@ -141,33 +156,46 @@ const TeachersView: React.FC = () => {
 
   const filteredTeachers = teachers.filter(t => 
       t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (t.subjects && t.subjects.some(s => s.toLowerCase().includes(searchTerm.toLowerCase())))
+      (Array.isArray(t.subjects) && t.subjects.some(s => s.toLowerCase().includes(searchTerm.toLowerCase())))
   );
 
   return (
     <div className="h-full flex flex-col bg-supabase-bg">
-      <div className="min-h-[4rem] h-auto sm:h-16 border-b border-supabase-border bg-supabase-panel flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 sm:px-6 py-3 sm:py-0 gap-3 sm:gap-0 shrink-0">
-        <div className="flex items-center gap-3">
-             <GraduationCap className="text-supabase-green" size={24} />
-             <div>
-                <h1 className="text-base sm:text-lg font-medium text-supabase-text leading-none">Teachers</h1>
-                <p className="text-[10px] sm:text-xs text-supabase-muted mt-1">Manage faculty directory</p>
-             </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-             <div className="flex bg-supabase-sidebar border border-supabase-border rounded-md p-0.5">
-                <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-supabase-panel shadow-sm text-supabase-text' : 'text-supabase-muted hover:text-supabase-text'}`}><LayoutGrid size={16} /></button>
-                <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-supabase-panel shadow-sm text-supabase-text' : 'text-supabase-muted hover:text-supabase-text'}`}><List size={16} /></button>
-             </div>
-             <div className="relative group flex-1 sm:flex-none">
-                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-text" />
-                <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-supabase-sidebar border border-supabase-border rounded-full py-1.5 pl-9 pr-4 text-sm text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-64" />
+      <div className="p-4 sm:p-6 border-b border-supabase-border bg-supabase-panel/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex items-center gap-4 sm:gap-6">
+            <motion.div 
+              whileHover={{ scale: 1.05, rotate: 2 }}
+              className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-supabase-panel border border-supabase-border rounded-2xl flex items-center justify-center shadow-xl relative overflow-hidden group"
+            >
+              <div className="relative z-10 text-supabase-green font-black text-2xl sm:text-3xl">T</div>
+            </motion.div>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-black text-supabase-text uppercase tracking-tighter flex flex-wrap items-center gap-2 sm:gap-3">
+                Teachers
+                <span className="text-[10px] px-2 py-0.5 bg-supabase-green/10 text-supabase-green border border-supabase-green/20 rounded-full font-bold tracking-widest whitespace-nowrap">DIRECTORY</span>
+              </h1>
+              <div className="text-[10px] sm:text-xs text-supabase-muted mt-1 sm:mt-2 font-bold uppercase tracking-[0.15em] sm:tracking-[0.2em] flex items-start sm:items-center gap-2">
+                <GraduationCap size={12} className="text-supabase-green shrink-0 mt-0.5 sm:mt-0" />
+                <span className="leading-snug sm:leading-normal">Manage faculty directory</span>
+              </div>
             </div>
-            {canManage && (
-              <button onClick={() => setIsModalOpen(true)} className="bg-supabase-green text-black px-3 sm:px-4 py-2 rounded-md text-sm font-medium hover:bg-supabase-greenHover flex items-center gap-2">
-                <Plus size={16} /><span className="hidden xs:inline">Add Teacher</span><span className="xs:hidden">Add</span>
-              </button>
-            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
+               <div className="flex bg-supabase-sidebar border border-supabase-border rounded-md p-0.5">
+                  <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded ${viewMode === 'grid' ? 'bg-supabase-panel shadow-sm text-supabase-text' : 'text-supabase-muted hover:text-supabase-text'}`}><LayoutGrid size={16} /></button>
+                  <button onClick={() => setViewMode('list')} className={`p-1.5 rounded ${viewMode === 'list' ? 'bg-supabase-panel shadow-sm text-supabase-text' : 'text-supabase-muted hover:text-supabase-text'}`}><List size={16} /></button>
+               </div>
+               <div className="relative group flex-1 sm:flex-none">
+                  <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-supabase-muted group-focus-within:text-supabase-green transition-colors" />
+                  <input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="bg-supabase-sidebar border border-supabase-border rounded-full py-1.5 pl-9 pr-4 text-sm text-supabase-text focus:outline-none focus:border-supabase-green w-full sm:w-64 shadow-inner transition-all" />
+              </div>
+              {canManage && (
+                <button onClick={() => setIsModalOpen(true)} className="bg-supabase-green text-black px-3 sm:px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover flex items-center gap-2 shadow-lg shadow-supabase-green/10 transition-all shrink-0">
+                  <Plus size={14} /><span className="hidden sm:inline">Add Teacher</span><span className="sm:hidden">Add</span>
+                </button>
+              )}
+          </div>
         </div>
       </div>
 
@@ -185,7 +213,7 @@ const TeachersView: React.FC = () => {
                                 {canManage && (
                                   <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10">
                                       <button onClick={() => handleEdit(teacher)} className="p-1.5 text-supabase-muted hover:text-supabase-text hover:bg-supabase-hover rounded"><Edit2 size={16} /></button>
-                                      <button onClick={() => handleDelete(teacher.id, teacher.name)} className="p-1.5 text-supabase-muted hover:text-red-400 hover:bg-red-500/10 rounded"><Trash2 size={16} /></button>
+                                      <button onClick={() => handleDeleteClick(teacher.id, teacher.name)} className="p-1.5 text-supabase-muted hover:text-red-400 hover:bg-red-500/10 rounded"><Trash2 size={16} /></button>
                                   </div>
                                 )}
                                 <div className="flex items-start gap-4 mb-4">
@@ -198,7 +226,7 @@ const TeachersView: React.FC = () => {
                                     <div className="min-w-0">
                                         <h3 className="font-medium text-supabase-text text-base truncate">{teacher.name}</h3>
                                         <div className="flex flex-wrap gap-1 mt-2">
-                                            {teacher.subjects?.map((subj, idx) => <span key={idx} className="text-[10px] px-2 py-0.5 rounded-full bg-supabase-green/10 text-supabase-green border border-supabase-green/20">{subj}</span>)}
+                                            {Array.isArray(teacher.subjects) && teacher.subjects.map((subj, idx) => <span key={idx} className="text-[10px] px-2 py-0.5 rounded-full bg-supabase-green/10 text-supabase-green border border-supabase-green/20">{subj}</span>)}
                                         </div>
                                     </div>
                                 </div>
@@ -233,12 +261,12 @@ const TeachersView: React.FC = () => {
                                             <span className="text-sm font-medium text-supabase-text">{teacher.name}</span>
                                         </td>
                                         <td className="px-6 py-4 border-b border-supabase-border">
-                                            <div className="flex gap-1">{teacher.subjects?.map((s, i) => <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-supabase-green/10 text-supabase-green border border-supabase-green/20">{s}</span>)}</div>
+                                            <div className="flex gap-1">{Array.isArray(teacher.subjects) && teacher.subjects.map((s, i) => <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-supabase-green/10 text-supabase-green border border-supabase-green/20">{s}</span>)}</div>
                                         </td>
                                         {canManage && (
                                           <td className="px-6 py-4 border-b border-supabase-border text-right">
                                                <button onClick={() => handleEdit(teacher)} className="p-1.5 text-supabase-muted hover:text-supabase-text"><Edit2 size={16} /></button>
-                                               <button onClick={() => handleDelete(teacher.id, teacher.name)} className="p-1.5 text-supabase-muted hover:text-red-400"><Trash2 size={16} /></button>
+                                               <button onClick={() => handleDeleteClick(teacher.id, teacher.name)} className="p-1.5 text-supabase-muted hover:text-red-400"><Trash2 size={16} /></button>
                                           </td>
                                         )}
                                     </tr>

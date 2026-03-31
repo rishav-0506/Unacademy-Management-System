@@ -206,9 +206,7 @@ const ClassSchedule: React.FC = () => {
       .sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
   };
 
-  const filteredTeachers = availableTeachers.filter(teacher => 
-    formData.title && teacher.subjects && teacher.subjects.includes(formData.title)
-  );
+  const filteredTeachers = availableTeachers;
 
   return (
     <div className="h-full flex flex-col bg-supabase-bg text-supabase-text relative">
