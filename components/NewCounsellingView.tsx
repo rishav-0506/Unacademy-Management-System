@@ -1,11 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, User, Phone, Mail, MapPin, BookOpen, Clock, Info, CheckCircle2, Loader2 } from 'lucide-react';
+import { Save, User, Phone, Mail, MapPin, BookOpen, Info, CheckCircle2, Loader2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { counsellingService } from '../services/counsellingService';
 import { academicService, PreferredCourse } from '../services/academicService';
+import { systemConfigService } from '../services/systemConfigService';
+import { LeadSource, Counsellor, MapLeader } from '../types';
 
 const NewCounsellingView: React.FC = () => {
   const { showToast } = useToast();
@@ -13,6 +15,14 @@ const NewCounsellingView: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [courses, setCourses] = useState<PreferredCourse[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [leadSources, setLeadSources] = useState<LeadSource[]>([]);
+  const [loadingLeadSources, setLoadingLeadSources] = useState(true);
+  const [leadBy, setLeadBy] = useState<string[]>([]);
+  const [loadingLeadBy, setLoadingLeadBy] = useState(true);
+  const [mapLeaders, setMapLeaders] = useState<MapLeader[]>([]);
+  const [loadingMapLeaders, setLoadingMapLeaders] = useState(true);
+  const [counsellors, setCounsellors] = useState<Counsellor[]>([]);
+  const [loadingCounsellors, setLoadingCounsellors] = useState(true);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -26,45 +36,133 @@ const NewCounsellingView: React.FC = () => {
     address: '',
     parent_contact_no: '',
     occupation: '',
+    counsellor: '',
     course_interest: {
       current_education_level: '',
       school_name: '',
       preferred_course: '',
       percentage_or_cgpa: '',
-      preferred_batch_timing: ''
+      previous_coaching: ''
     },
     additional_information: {
-      previous_coaching: '',
       heard_about: '',
+      lead_by: '',
+      map_leader: '',
       concerns_or_queries: ''
     }
   });
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    if (user?.name && !formData.counsellor && !loadingCounsellors) {
+      // Check if user.name exists in counsellors list (case-insensitive)
+      const matchingCounsellor = counsellors.find(c => 
+        c.name.toLowerCase() === user.name.toLowerCase()
+      );
+      
+      if (matchingCounsellor) {
+        setFormData(prev => ({ ...prev, counsellor: matchingCounsellor.name }));
+      } else if (user.role === 'superadmin' || user.role === 'admin') {
+        // For admins, we might allow them to be the counsellor even if not in the list
+        // or just set it anyway and let the select handle it
+        setFormData(prev => ({ ...prev, counsellor: user.name }));
+      }
+    }
+  }, [user, counsellors, loadingCounsellors]);
+
+  useEffect(() => {
+    const initialize = async () => {
       try {
-        const data = await academicService.getCourses();
-        setCourses(data.filter(c => c.status === 'active'));
+        const [courseData, leadSourceData, leadByData, counsellorData, mapLeaderData] = await Promise.all([
+          academicService.getCourses(),
+          systemConfigService.getLeadSources(),
+          systemConfigService.getLeadBy(),
+          systemConfigService.getCounsellors(),
+          systemConfigService.getMapLeaders()
+        ]);
+        
+        console.log('Fetched courses:', courseData);
+        console.log('Fetched lead sources:', leadSourceData);
+        console.log('Fetched lead by:', leadByData);
+        console.log('Fetched counsellors:', counsellorData);
+        console.log('Fetched map leaders:', mapLeaderData);
+
+        if (Array.isArray(courseData)) {
+          setCourses(courseData.filter(c => c && c.status === 'active'));
+        } else {
+          console.warn('courseData is not an array:', courseData);
+          setCourses([]);
+        }
+
+        if (Array.isArray(leadSourceData)) {
+          setLeadSources(leadSourceData as LeadSource[]);
+        } else {
+          console.warn('leadSourceData is not an array:', leadSourceData);
+          setLeadSources([]);
+        }
+
+        if (Array.isArray(leadByData)) {
+          setLeadBy(leadByData);
+        } else {
+          console.warn('leadByData is not an array:', leadByData);
+          setLeadBy([]);
+        }
+
+        if (Array.isArray(counsellorData)) {
+          setCounsellors(counsellorData);
+        } else {
+          console.warn('counsellorData is not an array:', counsellorData);
+          setCounsellors([]);
+        }
+
+        if (Array.isArray(mapLeaderData)) {
+          setMapLeaders(mapLeaderData);
+        } else {
+          console.warn('mapLeaderData is not an array:', mapLeaderData);
+          setMapLeaders([]);
+        }
       } catch (error: any) {
-        showToast('Failed to load courses', 'error');
+        console.error('Initialization error:', error);
+        showToast('Failed to load initial data', 'error');
       } finally {
         setLoadingCourses(false);
+        setLoadingLeadSources(false);
+        setLoadingLeadBy(false);
+        setLoadingCounsellors(false);
+        setLoadingMapLeaders(false);
       }
     };
-    fetchCourses();
+    initialize();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     if (name.includes('.')) {
       const [section, field] = name.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [section]: {
+      setFormData(prev => {
+        const updatedSection = {
           ...(prev[section as keyof typeof prev] as any),
           [field]: value
+        };
+
+        // If heard_about changes and is no longer the first one, clear lead_by
+        if (name === 'additional_information.heard_about') {
+          const selectedSource = leadSources.find(ls => ls.name === value);
+          const isLeadByTriggered = selectedSource?.id === '1';
+          const isMapLeaderTriggered = selectedSource?.code === 'I1';
+          
+          if (!isLeadByTriggered) {
+            updatedSection.lead_by = '';
+          }
+          if (!isMapLeaderTriggered) {
+            updatedSection.map_leader = '';
+          }
         }
-      }));
+
+        return {
+          ...prev,
+          [section]: updatedSection
+        };
+      });
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -75,8 +173,27 @@ const NewCounsellingView: React.FC = () => {
     setIsSubmitting(true);
     try {
       const creator = user?.name || 'Unknown';
+      
+      // Generate Token
+      const records = await counsellingService.getRecords();
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const prefix = `UT${year}${month}`;
+      
+      const existingTokens = records
+        .filter(r => r.token_no && r.token_no.startsWith(prefix))
+        .map(r => parseInt(r.token_no!.slice(-4), 10))
+        .filter(n => !isNaN(n));
+      
+      const maxToken = existingTokens.length > 0 ? Math.max(...existingTokens) : 0;
+      const nextToken = String(maxToken + 1).padStart(4, '0');
+      const token_no = `${prefix}${nextToken}`;
+
       await counsellingService.addRecord({
         ...formData,
+        status: '0',
+        token_no,
         created_by: creator,
         activity_log: [
           {
@@ -86,7 +203,7 @@ const NewCounsellingView: React.FC = () => {
           }
         ]
       });
-      showToast('Counselling record saved successfully', 'success');
+      showToast(`Counselling record saved successfully. Token: ${token_no}`, 'success');
       // Reset form
       setFormData({
         date: new Date().toISOString().split('T')[0],
@@ -100,16 +217,18 @@ const NewCounsellingView: React.FC = () => {
         address: '',
         parent_contact_no: '',
         occupation: '',
+        counsellor: user?.name || '',
         course_interest: {
           current_education_level: '',
           school_name: '',
           preferred_course: '',
           percentage_or_cgpa: '',
-          preferred_batch_timing: ''
+          previous_coaching: ''
         },
         additional_information: {
-          previous_coaching: '',
           heard_about: '',
+          lead_by: '',
+          map_leader: '',
           concerns_or_queries: ''
         }
       });
@@ -300,23 +419,7 @@ const NewCounsellingView: React.FC = () => {
                 className={inputClasses}
               />
             </div>
-            <div>
-              <label className={labelClasses}>Preferred Course</label>
-              <select 
-                name="course_interest.preferred_course"
-                required
-                value={formData.course_interest.preferred_course}
-                onChange={handleChange}
-                className={inputClasses}
-                disabled={loadingCourses}
-              >
-                <option value="">{loadingCourses ? 'Loading courses...' : 'Select Preferred Course'}</option>
-                {courses.map(course => (
-                  <option key={course.id} value={course.name}>{course.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className={labelClasses}>Percentage/CGPA</label>
                 <input 
@@ -329,15 +432,33 @@ const NewCounsellingView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className={labelClasses}><Clock size={12} /> Batch Timing</label>
+                <label className={labelClasses}>Previous Coaching (if any)</label>
                 <input 
                   type="text" 
-                  name="course_interest.preferred_batch_timing"
-                  placeholder="e.g. Evening"
-                  value={formData.course_interest.preferred_batch_timing}
+                  name="course_interest.previous_coaching"
+                  placeholder="Name of previous institute"
+                  value={formData.course_interest.previous_coaching}
                   onChange={handleChange}
                   className={inputClasses}
                 />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className={labelClasses}>Preferred Course</label>
+                <select 
+                  name="course_interest.preferred_course"
+                  required
+                  value={formData.course_interest.preferred_course}
+                  onChange={handleChange}
+                  className={inputClasses}
+                  disabled={loadingCourses}
+                >
+                  <option value="">{loadingCourses ? 'Loading courses...' : 'Select Preferred Course'}</option>
+                  {courses.map(course => (
+                    <option key={course.id} value={course.name}>{course.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -351,18 +472,7 @@ const NewCounsellingView: React.FC = () => {
             Additional Information
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className={labelClasses}>Previous Coaching (if any)</label>
-              <input 
-                type="text" 
-                name="additional_information.previous_coaching"
-                placeholder="Name of previous institute"
-                value={formData.additional_information.previous_coaching}
-                onChange={handleChange}
-                className={inputClasses}
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
               <label className={labelClasses}>How did you hear about us?</label>
               <select 
@@ -370,16 +480,74 @@ const NewCounsellingView: React.FC = () => {
                 value={formData.additional_information.heard_about}
                 onChange={handleChange}
                 className={inputClasses}
+                disabled={loadingLeadSources}
               >
-                <option value="">Select Source</option>
-                <option value="Social Media">Social Media</option>
-                <option value="Friends/Family">Friends/Family</option>
-                <option value="Newspaper">Newspaper</option>
-                <option value="Website">Website</option>
-                <option value="Other">Other</option>
+                <option value="">{loadingLeadSources ? 'Loading sources...' : 'Select Source'}</option>
+                {leadSources.map((source) => (
+                  <option key={source.id} value={source.name} data-id={source.id}>{source.name}</option>
+                ))}
               </select>
             </div>
-            <div className="md:col-span-2">
+            {/* Conditional Lead Access Dropdown - Triggered if id=1 */}
+            {leadSources.find(ls => ls.name === formData.additional_information.heard_about)?.id === '1' && (
+              <div>
+                <label className={labelClasses}>Lead Access</label>
+                <select 
+                  name="additional_information.lead_by"
+                  value={formData.additional_information.lead_by}
+                  onChange={handleChange}
+                  className={inputClasses}
+                  disabled={loadingLeadBy}
+                >
+                  <option value="">{loadingLeadBy ? 'Loading...' : 'Select Lead Access'}</option>
+                  {leadBy.map(item => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Conditional Map Leader Dropdown - Triggered if code=I1 */}
+            {leadSources.find(ls => ls.name === formData.additional_information.heard_about)?.code === 'I1' && (
+              <div>
+                <label className={labelClasses}>Map Leader</label>
+                <select 
+                  name="additional_information.map_leader"
+                  value={formData.additional_information.map_leader}
+                  onChange={handleChange}
+                  className={inputClasses}
+                  disabled={loadingMapLeaders}
+                >
+                  <option value="">{loadingMapLeaders ? 'Loading leaders...' : 'Select Map Leader'}</option>
+                  {mapLeaders.map(leader => (
+                    <option key={leader.id} value={leader.name}>{leader.name} ({leader.id})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className={labelClasses}>Select Counsellor</label>
+              <select 
+                name="counsellor"
+                value={formData.counsellor}
+                onChange={handleChange}
+                className={inputClasses}
+                disabled={loadingCounsellors}
+              >
+                <option value="">{loadingCounsellors ? 'Loading counsellors...' : 'Select Counsellor'}</option>
+                {/* Ensure current user is an option if they are an admin/superadmin */}
+                {user?.name && !counsellors.some(c => c.name.toLowerCase() === user.name.toLowerCase()) && (
+                  <option value={user.name}>{user.name} (Current User)</option>
+                )}
+                {counsellors.map(c => (
+                  <option key={c.id} value={c.name}>{c.name} ({c.id})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            <div>
               <label className={labelClasses}>Concerns or Queries</label>
               <textarea 
                 name="additional_information.concerns_or_queries"

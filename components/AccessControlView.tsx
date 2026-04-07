@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { ShieldCheck, Users, Lock, Check, Search, RotateCcw, Layers, ChevronRight, User as UserIcon, CheckCircle2, Shield, MoreVertical, Plus, X } from 'lucide-react';
-import { useAuth, PermissionKey, UserRole } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../context/ToastContext';
 import { useClass } from '../context/ClassContext';
 import { scheduleService } from '../services/scheduleService';
-import { ClassInfo, Employee } from '../types';
+import { PermissionKey, UserRole, ClassInfo, Employee } from '../types';
 
 interface SystemUser {
   id: string;

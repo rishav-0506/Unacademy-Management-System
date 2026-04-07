@@ -69,3 +69,11 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted); 
 }
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}

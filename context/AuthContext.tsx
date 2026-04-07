@@ -1,33 +1,16 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
-
-export type UserRole = string;
-
-export interface User {
-  email: string;
-  role: UserRole;
-  name: string;
-  id: string;
-}
-
-export type PermissionKey = 
-  | 'VIEW_DASHBOARD'
-  | 'VIEW_SCHEDULE_LIST'
-  | 'VIEW_LIVE_SCHEDULE'
-  | 'VIEW_CLASS_SCHEDULE'
-  | 'VIEW_TEACHER_TASKS'
-  | 'VIEW_SETTINGS'
-  | 'MANAGE_TEACHERS' 
-  | 'DELETE_SCHEDULE' 
-  | 'PUBLISH_SCHEDULE' 
-  | 'EDIT_SCHEDULE' 
-  | 'VIEW_REPORTS' 
-  | 'VIEW_ACADEMIC'
-  | 'ACCESS_SQL_EDITOR' 
-  | 'MANAGE_ROLES';
-
-export type PermissionMap = Record<PermissionKey, UserRole[]>;
+import { User, PermissionMap, PermissionKey, UserRole, LeadSource, MapLeader, Employee, Counsellor } from '../types';
+import { 
+  INITIAL_LEAD_SOURCES, 
+  INITIAL_ROLES, 
+  INITIAL_DEPARTMENTS, 
+  INITIAL_DESIGNATIONS, 
+  INITIAL_LEAD_BY, 
+  DEFAULT_DEPT_MAP, 
+  DEFAULT_PERMISSIONS 
+} from '../constants';
 
 interface AuthContextType {
   user: User | null;
@@ -40,6 +23,11 @@ interface AuthContextType {
   availableRoles: UserRole[];
   departments: string[];
   designations: string[];
+  leadSources: LeadSource[];
+  leadBy: string[];
+  counsellors: Counsellor[];
+  mapLeaders: MapLeader[];
+  allEmployees: Employee[];
   departmentDesignationMap: Record<string, string[]>;
   updatePermission: (key: PermissionKey, roles: UserRole[]) => Promise<void>;
   addRole: (roleName: string) => Promise<void>;
@@ -48,7 +36,19 @@ interface AuthContextType {
   deleteDepartment: (deptName: string) => Promise<void>;
   addDesignation: (name: string) => void;
   deleteDesignation: (name: string) => void;
+  addLeadSource: (id: string, name: string, code?: string) => void;
+  updateLeadSource: (id: string, data: Partial<LeadSource>) => void;
+  deleteLeadSource: (id: string) => void;
+  deleteLeadSourceByIndex: (index: number) => void;
+  clearAllLeadSources: () => void;
+  addLeadBy: (name: string) => void;
+  deleteLeadBy: (name: string) => void;
+  toggleMapLeader: (employee: Employee) => Promise<void>;
+  toggleCounsellor: (employee: Employee) => Promise<void>;
+  addCounsellor: (name: string) => Promise<void>;
+  deleteCounsellor: (name: string) => Promise<void>;
   updateDeptMap: (dept: string, selectedDesignations: string[]) => void;
+  saveConfigItem: (key: string, value: any) => Promise<void>;
   saveSystemConfig: (academicData?: { classes: any[], subjects: any[], sections: any[] }) => Promise<void>;
   saveSystemRoles: () => Promise<void>;
   register: (email: string, password: string, fullName: string, role: string) => Promise<void>;
@@ -56,34 +56,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-const INITIAL_ROLES: UserRole[] = ['superadmin', 'administrator', 'editor', 'teacher', 'viewer'];
-const INITIAL_DEPARTMENTS: string[] = ['Academic', 'Administration', 'IT Support', 'Human Resources'];
-const INITIAL_DESIGNATIONS: string[] = ['Counselling', 'Academic Works', 'Director', 'Teacher', 'Faculty Coordinator', 'Office Manager', 'HR Lead', 'Recruiter', 'System Admin', 'Support Tech'];
-
-const DEFAULT_DEPT_MAP: Record<string, string[]> = {
-  'Academic': ['Academic Works', 'Teacher', 'Faculty Coordinator'],
-  'Administration': ['Director', 'Counselling', 'Office Manager'],
-  'Human Resources': ['HR Lead', 'Recruiter'],
-  'IT Support': ['System Admin', 'Support Tech']
-};
-
-const DEFAULT_PERMISSIONS: PermissionMap = {
-  VIEW_DASHBOARD: ['superadmin', 'administrator', 'admin', 'editor', 'teacher', 'viewer'],
-  VIEW_SCHEDULE_LIST: ['superadmin', 'administrator', 'admin', 'editor'],
-  VIEW_LIVE_SCHEDULE: ['superadmin', 'administrator', 'admin', 'editor', 'teacher', 'viewer'],
-  VIEW_CLASS_SCHEDULE: ['superadmin', 'administrator', 'admin', 'editor'],
-  VIEW_TEACHER_TASKS: ['superadmin', 'administrator', 'admin', 'editor', 'teacher'],
-  VIEW_SETTINGS: ['superadmin', 'administrator', 'admin'],
-  MANAGE_TEACHERS: ['superadmin', 'administrator', 'admin'],
-  DELETE_SCHEDULE: ['superadmin', 'administrator', 'admin'],
-  PUBLISH_SCHEDULE: ['superadmin', 'administrator', 'editor', 'admin'],
-  EDIT_SCHEDULE: ['superadmin', 'administrator', 'editor', 'admin'],
-  VIEW_REPORTS: ['superadmin', 'administrator', 'editor', 'viewer', 'admin', 'teacher'],
-  VIEW_ACADEMIC: ['superadmin', 'administrator', 'admin', 'editor', 'teacher', 'viewer'],
-  ACCESS_SQL_EDITOR: ['superadmin', 'administrator', 'admin'],
-  MANAGE_ROLES: ['superadmin'],
-};
 
 const MOCK_USER: User = {
   id: 'dev-mode-user',
@@ -99,6 +71,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [availableRoles, setAvailableRoles] = useState<UserRole[]>(INITIAL_ROLES);
   const [departments, setDepartments] = useState<string[]>(INITIAL_DEPARTMENTS);
   const [designations, setDesignations] = useState<string[]>(INITIAL_DESIGNATIONS);
+  const [leadSources, setLeadSources] = useState<LeadSource[]>(INITIAL_LEAD_SOURCES);
+  const [leadBy, setLeadBy] = useState<string[]>(INITIAL_LEAD_BY);
+  const [counsellors, setCounsellors] = useState<Counsellor[]>([]);
+  const [mapLeaders, setMapLeaders] = useState<MapLeader[]>([]);
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [departmentDesignationMap, setDepartmentDesignationMap] = useState<Record<string, string[]>>(DEFAULT_DEPT_MAP);
 
   useEffect(() => {
@@ -190,6 +167,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           try {
+            const { data: leadData, error: leadError } = await fetchWithTimeout(
+              supabase.from('system_config').select('value').eq('key', 'lead_source').maybeSingle()
+            ) as any;
+            if (leadError) console.error("Error loading lead_source:", leadError.message);
+            console.log("Loaded lead_source from DB:", leadData?.value);
+            if (leadData?.value) {
+              const rawSources = leadData.value as LeadSource[];
+              // Automatic cleanup for duplicate IDs
+              const seenIds = new Set<string>();
+              const cleanedSources = rawSources.map((source, index) => {
+                let uniqueId = source.id;
+                let counter = 1;
+                while (seenIds.has(uniqueId)) {
+                  uniqueId = `${source.id}_${counter}`;
+                  counter++;
+                }
+                seenIds.add(uniqueId);
+                return { ...source, id: uniqueId };
+              });
+
+              // If cleanup changed anything, update the state and optionally the DB
+              const hasChanges = cleanedSources.some((s, i) => s.id !== rawSources[i].id);
+              setLeadSources(cleanedSources);
+              
+              if (hasChanges) {
+                console.log("Fixed duplicate lead source IDs:", cleanedSources);
+                // We'll let the user save it manually or we can trigger an auto-save here if needed
+                // For now, just updating the local state is enough to fix the UI issues.
+              }
+            } else {
+              console.log("No lead_source found in DB, using initial sources.");
+            }
+          } catch (e) {
+            console.warn("lead_source fetch timed out or failed");
+          }
+
+          try {
+            const { data: leadByData, error: leadByError } = await fetchWithTimeout(
+              supabase.from('system_config').select('value').eq('key', 'lead_by').maybeSingle()
+            ) as any;
+            if (leadByError) console.error("Error loading lead_by:", leadByError.message);
+            if (leadByData?.value) setLeadBy(leadByData.value as string[]);
+          } catch (e) {
+            console.warn("lead_by fetch timed out or failed");
+          }
+
+          try {
+            const { data: counsellorData, error: counsellorError } = await fetchWithTimeout(
+              supabase.from('system_config').select('value').eq('key', 'counsellors').maybeSingle()
+            ) as any;
+            if (counsellorError) console.error("Error loading counsellors:", counsellorError.message);
+            if (counsellorData?.value) setCounsellors(counsellorData.value as Counsellor[]);
+          } catch (e) {
+            console.warn("counsellors fetch timed out or failed");
+          }
+
+          try {
             const { data: mapData, error: mapError } = await fetchWithTimeout(
               supabase.from('system_config').select('value').eq('key', 'dept_designation_map').maybeSingle()
             ) as any;
@@ -197,6 +231,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (mapData?.value) setDepartmentDesignationMap(mapData.value as Record<string, string[]>);
           } catch (e) {
             console.warn("dept_designation_map fetch timed out or failed");
+          }
+
+          try {
+            const { data: mapLeaderData, error: mapLeaderError } = await fetchWithTimeout(
+              supabase.from('system_config').select('value').eq('key', 'map_leader').maybeSingle()
+            ) as any;
+            if (mapLeaderError) console.error("Error loading map_leader:", mapLeaderError.message);
+            if (mapLeaderData?.value) setMapLeaders(mapLeaderData.value as MapLeader[]);
+          } catch (e) {
+            console.warn("map_leader fetch timed out or failed");
+          }
+
+          try {
+            const { data: empData, error: empError } = await fetchWithTimeout(
+              supabase.from('employees').select('id, full_name, status')
+            ) as any;
+            if (empError) console.error("Error loading employees:", empError.message);
+            if (empData) setAllEmployees(empData as Employee[]);
+          } catch (e) {
+            console.warn("employees fetch timed out or failed");
           }
         }
       } catch (e) {
@@ -286,17 +340,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const saveConfigItem = async (key: string, value: any) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('system_config')
+      .upsert({ key, value }, { onConflict: 'key' });
+    if (error) {
+      console.error(`Error saving config item ${key}:`, error);
+      throw error;
+    }
+  };
+
   const saveSystemConfig = async (academicData?: { classes: any[], subjects: any[], sections: any[] }) => {
-    if (supabase) {
-      await supabase.from('system_config').upsert({ key: 'system_roles', value: availableRoles }, { onConflict: 'key' });
-      await supabase.from('system_config').upsert({ key: 'system_departments', value: departments }, { onConflict: 'key' });
-      await supabase.from('system_config').upsert({ key: 'system_designations', value: designations }, { onConflict: 'key' });
-      await supabase.from('system_config').upsert({ key: 'dept_designation_map', value: departmentDesignationMap }, { onConflict: 'key' });
+    if (!supabase) return;
+
+    const configs = [
+      { key: 'system_roles', value: availableRoles },
+      { key: 'system_departments', value: departments },
+      { key: 'system_designations', value: designations },
+      { key: 'lead_source', value: leadSources },
+      { key: 'lead_by', value: leadBy },
+      { key: 'counsellor', value: counsellors },
+      { key: 'dept_designation_map', value: departmentDesignationMap }
+    ];
+
+    if (academicData) {
+      configs.push({ key: 'academic_structure_snapshot', value: academicData });
+    }
+
+    for (const config of configs) {
+      console.log(`Saving ${config.key} to DB:`, config.value);
+      const { error } = await supabase
+        .from('system_config')
+        .upsert(config, { onConflict: 'key' });
       
-      if (academicData) {
-        await supabase.from('system_config').upsert({ key: 'academic_structure_snapshot', value: academicData }, { onConflict: 'key' });
+      if (error) {
+        console.error(`Error saving ${config.key}:`, error);
+        throw new Error(`Failed to save ${config.key}: ${error.message}`);
       }
     }
+    console.log("All system configurations saved successfully.");
   };
 
   const saveSystemRoles = async () => saveSystemConfig();
@@ -335,6 +418,99 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const deleteDesignation = (name: string) => {
     setDesignations(prev => prev.filter(d => d !== name));
+  };
+
+  const addLeadSource = (id: string, name: string, code?: string) => {
+    const trimmedId = id.trim();
+    const trimmedName = name.trim();
+    if (trimmedId && trimmedName && !leadSources.some(ls => ls.id === trimmedId)) {
+      setLeadSources(prev => [...prev, { id: trimmedId, name: trimmedName, code: code?.trim() }]);
+    }
+  };
+
+  const updateLeadSource = (id: string, data: Partial<LeadSource>) => {
+    setLeadSources(prev => prev.map(ls => ls.id === id ? { ...ls, ...data } : ls));
+  };
+
+  const deleteLeadSource = (id: string) => {
+    setLeadSources(prev => prev.filter(ls => ls.id !== id));
+  };
+
+  const deleteLeadSourceByIndex = (index: number) => {
+    setLeadSources(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearAllLeadSources = () => {
+    setLeadSources([]);
+  };
+
+  const addLeadBy = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed && !leadBy.includes(trimmed)) {
+      setLeadBy(prev => [...prev, trimmed]);
+    }
+  };
+
+  const deleteLeadBy = (name: string) => {
+    setLeadBy(prev => prev.filter(d => d !== name));
+  };
+
+  const toggleMapLeader = async (employee: Employee) => {
+    const isAlreadyLeader = mapLeaders.some(ml => ml.uuid === employee.id);
+    let updatedLeaders: MapLeader[];
+
+    if (isAlreadyLeader) {
+      updatedLeaders = mapLeaders.filter(ml => ml.uuid !== employee.id);
+    } else {
+      const newLeader: MapLeader = {
+        id: Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
+        uuid: employee.id,
+        name: employee.full_name
+      };
+      updatedLeaders = [...mapLeaders, newLeader];
+    }
+
+    setMapLeaders(updatedLeaders);
+    await saveConfigItem('map_leader', updatedLeaders);
+  };
+
+  const toggleCounsellor = async (employee: Employee) => {
+    const isAlreadyCounsellor = counsellors.some(c => c.uuid === employee.id);
+    let updatedCounsellors: Counsellor[];
+
+    if (isAlreadyCounsellor) {
+      updatedCounsellors = counsellors.filter(c => c.uuid !== employee.id);
+    } else {
+      const newCounsellor: Counsellor = {
+        id: Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
+        uuid: employee.id,
+        name: employee.full_name
+      };
+      updatedCounsellors = [...counsellors, newCounsellor];
+    }
+
+    setCounsellors(updatedCounsellors);
+    await saveConfigItem('counsellors', updatedCounsellors);
+  };
+
+  const addCounsellor = async (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed && !counsellors.some(c => c.name === trimmed)) {
+      const newC: Counsellor = {
+        id: Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
+        uuid: '',
+        name: trimmed
+      };
+      const updated = [...counsellors, newC];
+      setCounsellors(updated);
+      await saveConfigItem('counsellors', updated);
+    }
+  };
+
+  const deleteCounsellor = async (name: string) => {
+    const updated = counsellors.filter(d => d.name !== name);
+    setCounsellors(updated);
+    await saveConfigItem('counsellors', updated);
   };
 
   const updateDeptMap = (dept: string, selectedDesignations: string[]) => {
@@ -414,8 +590,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={{ 
-      user, isAuthenticated: !!user, login, logout, isLoading, hasPermission, permissions, availableRoles, departments, designations, departmentDesignationMap,
-      updatePermission, addRole, deleteRole, addDepartment, deleteDepartment, addDesignation, deleteDesignation, updateDeptMap, saveSystemConfig, saveSystemRoles,
+      user, isAuthenticated: !!user, login, logout, isLoading, hasPermission, permissions, availableRoles, departments, designations, leadSources, leadBy, counsellors, mapLeaders, allEmployees, departmentDesignationMap,
+      updatePermission, addRole, deleteRole, addDepartment, deleteDepartment, addDesignation, deleteDesignation, addLeadSource, updateLeadSource, deleteLeadSource, deleteLeadSourceByIndex, clearAllLeadSources, addLeadBy, deleteLeadBy, toggleMapLeader, toggleCounsellor, addCounsellor, deleteCounsellor, updateDeptMap, saveConfigItem, saveSystemConfig, saveSystemRoles,
       updateUser, register
     }}>
       {children}

@@ -19,6 +19,7 @@ DROP TABLE IF EXISTS sections CASCADE;
 DROP TABLE IF EXISTS class_subjects CASCADE;
 DROP TABLE IF EXISTS academic_years CASCADE;
 DROP TABLE IF EXISTS terms CASCADE;
+DROP TABLE IF EXISTS fee_structure CASCADE;
 DROP TABLE IF EXISTS system_config CASCADE;
 
 -- 1. System Configuration & Auth
@@ -157,6 +158,32 @@ CREATE TABLE IF NOT EXISTS weekly_schedules (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS academic_years (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS terms (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL UNIQUE,
+    status TEXT DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fee_structure (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    amount NUMERIC NOT NULL,
+    frequency TEXT NOT NULL,
+    description TEXT,
+    academic_year TEXT,
+    term TEXT,
+    class_name TEXT REFERENCES classes(name),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 3. Attendance & Outreach
 CREATE TABLE IF NOT EXISTS attendance_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -242,6 +269,8 @@ CREATE TABLE IF NOT EXISTS user_assignments (
 
 CREATE TABLE IF NOT EXISTS registrations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sid TEXT UNIQUE,
+    row_student_id UUID REFERENCES row_students(id),
     student_name TEXT NOT NULL,
     parent_name TEXT,
     phone TEXT NOT NULL,
@@ -260,7 +289,7 @@ CREATE TABLE IF NOT EXISTS student_feedback (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS counselling_records (
+CREATE TABLE IF NOT EXISTS row_students (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     date DATE NOT NULL,
     student_name TEXT NOT NULL,
@@ -285,8 +314,8 @@ CREATE TABLE IF NOT EXISTS counselling_records (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Trigger for updated_at in counselling_records
-CREATE OR REPLACE FUNCTION update_counselling_records_updated_at_column()
+-- Trigger for updated_at in row_students
+CREATE OR REPLACE FUNCTION update_row_students_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
@@ -294,12 +323,15 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_counselling_records_updated_at
-    BEFORE UPDATE ON counselling_records
+CREATE TRIGGER update_row_students_updated_at
+    BEFORE UPDATE ON row_students
     FOR EACH ROW
-    EXECUTE FUNCTION update_counselling_records_updated_at_column();
+    EXECUTE FUNCTION update_row_students_updated_at_column();
 
 -- Enable RLS for all tables
+ALTER TABLE academic_years ENABLE ROW LEVEL SECURITY;
+ALTER TABLE terms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE fee_structure ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_config ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
@@ -319,11 +351,20 @@ ALTER TABLE user_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE student_feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE parents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE counselling_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE row_students ENABLE ROW LEVEL SECURITY;
 
 -- Create permissive policies for all tables (Public access for demo/internal system)
-DROP POLICY IF EXISTS "Allow all on counselling_records" ON counselling_records;
-CREATE POLICY "Allow all on counselling_records" ON counselling_records FOR ALL USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Allow all on row_students" ON row_students;
+CREATE POLICY "Allow all on row_students" ON row_students FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on academic_years" ON academic_years;
+CREATE POLICY "Allow all on academic_years" ON academic_years FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on terms" ON terms;
+CREATE POLICY "Allow all on terms" ON terms FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow all on fee_structure" ON fee_structure;
+CREATE POLICY "Allow all on fee_structure" ON fee_structure FOR ALL USING (true) WITH CHECK (true);
 
 -- Create permissive policies for all tables (Public access for demo/internal system)
 DROP POLICY IF EXISTS "Allow all on system_config" ON system_config;
@@ -404,5 +445,17 @@ INSERT INTO system_config (key, value) VALUES
   "VIEW_ACADEMIC": ["superadmin", "administrator", "admin", "editor", "teacher", "viewer"],
   "ACCESS_SQL_EDITOR": ["superadmin", "administrator", "admin"],
   "MANAGE_ROLES": ["superadmin"]
-}')
+}'::jsonb),
+('lead_source', '[
+  {"id": "1", "name": "Facebook"},
+  {"id": "2", "name": "Instagram"},
+  {"id": "3", "name": "Google"},
+  {"id": "4", "name": "Walk-in"},
+  {"id": "5", "name": "Referral"},
+  {"id": "6", "name": "Newspaper"},
+  {"id": "7", "name": "Radio"},
+  {"id": "8", "name": "TV"}
+]'::jsonb),
+('lead_by', '["Employee", "Partner", "Agent"]'::jsonb),
+('counsellor', '[]'::jsonb)
 ON CONFLICT (key) DO NOTHING;

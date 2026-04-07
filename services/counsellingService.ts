@@ -1,11 +1,11 @@
 
 import { supabase } from './supabaseClient';
-import { CounsellingRecord } from '../types';
+import { RowStudent } from '../types';
 
 export const counsellingService = {
-  async addRecord(record: Omit<CounsellingRecord, 'id' | 'created_at'>) {
+  async addRecord(record: Omit<RowStudent, 'id' | 'created_at'>) {
     const { data, error } = await supabase
-      .from('counselling_records')
+      .from('row_students')
       .insert([record])
       .select()
       .single();
@@ -16,26 +16,26 @@ export const counsellingService = {
 
   async getRecords() {
     const { data, error } = await supabase
-      .from('counselling_records')
+      .from('row_students')
       .select('*')
       .order('date', { ascending: false });
     
     if (error) throw error;
-    return data as CounsellingRecord[];
+    return data as RowStudent[];
   },
 
   async deleteRecord(id: string) {
     const { error } = await supabase
-      .from('counselling_records')
+      .from('row_students')
       .delete()
       .eq('id', id);
     
     if (error) throw error;
   },
 
-  async updateRecord(id: string, updates: Partial<CounsellingRecord>) {
+  async updateRecord(id: string, updates: Partial<RowStudent>) {
     const { data, error } = await supabase
-      .from('counselling_records')
+      .from('row_students')
       .update({
         ...updates,
         updated_at: new Date().toISOString()
@@ -45,6 +45,6 @@ export const counsellingService = {
       .single();
     
     if (error) throw error;
-    return data as CounsellingRecord;
+    return data as RowStudent;
   }
 };

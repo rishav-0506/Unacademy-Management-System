@@ -146,6 +146,52 @@ export interface Student {
   created_at?: string;
 }
 
+export type UserRole = string;
+
+export interface User {
+  email: string;
+  role: UserRole;
+  name: string;
+  id: string;
+}
+
+export type PermissionKey = 
+  | 'VIEW_DASHBOARD'
+  | 'VIEW_SCHEDULE_LIST'
+  | 'VIEW_LIVE_SCHEDULE'
+  | 'VIEW_CLASS_SCHEDULE'
+  | 'VIEW_TEACHER_TASKS'
+  | 'VIEW_SETTINGS'
+  | 'MANAGE_TEACHERS' 
+  | 'DELETE_SCHEDULE' 
+  | 'PUBLISH_SCHEDULE' 
+  | 'EDIT_SCHEDULE' 
+  | 'VIEW_REPORTS' 
+  | 'VIEW_ACADEMIC'
+  | 'ACCESS_SQL_EDITOR' 
+  | 'MANAGE_ROLES';
+
+export type PermissionMap = Record<PermissionKey, UserRole[]>;
+
+export interface LeadSource {
+  id: string;
+  name: string;
+  code?: string;
+  department?: string;
+}
+
+export interface MapLeader {
+  id: string;
+  uuid: string;
+  name: string;
+}
+
+export interface Counsellor {
+  id: string;
+  uuid: string;
+  name: string;
+}
+
 export interface ActivityLogItem {
   action: 'created' | 'edited' | 'approved' | 'rejected';
   user: string;
@@ -153,7 +199,7 @@ export interface ActivityLogItem {
   note?: string;
 }
 
-export interface CounsellingRecord {
+export interface RowStudent {
   id: string;
   date: string;
   student_name: string;
@@ -171,19 +217,23 @@ export interface CounsellingRecord {
     school_name: string;
     preferred_course: string;
     percentage_or_cgpa: string;
-    preferred_batch_timing: string;
+    previous_coaching: string;
   };
   additional_information: {
-    previous_coaching: string;
     heard_about: string;
+    lead_by?: string;
     concerns_or_queries: string;
+    class_id?: string;
+    registration_fee_status?: 'paid' | 'unpaid';
   };
   created_by?: string;
   created_at?: string;
-  status?: 'pending' | 'approved' | 'rejected';
+  status?: string;
+  token_no?: string;
   approved_by?: string;
   rejected_by?: string;
   last_edited_by?: string;
   activity_log?: ActivityLogItem[];
   updated_at?: string;
+  counsellor?: string;
 }

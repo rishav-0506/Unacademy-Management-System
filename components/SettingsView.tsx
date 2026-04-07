@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 /* Added ChevronRight to imports */
 import { 
-  Shield, Trash2, ShieldPlus, Save, Loader2, Building2, Plus, 
+  Shield, Trash2, ShieldPlus, Loader2, Building2, Plus, 
   Database, CloudCheck, Layout, Briefcase, Award, Link2, Check, Search,
   ChevronRight, Activity, 
-  RefreshCw, Server, Wifi, WifiOff, X, UserCheck, BookOpen, Layers
+  RefreshCw, Server, Wifi, WifiOff, X, UserCheck, BookOpen, Layers, Share2, User, UserPlus, Ban
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -16,27 +16,28 @@ const SettingsView: React.FC = () => {
     availableRoles, deleteRole, addRole, 
     departments, addDepartment, deleteDepartment, 
     designations, addDesignation, deleteDesignation,
-    departmentDesignationMap, updateDeptMap, saveSystemConfig
+    leadSources, addLeadSource, updateLeadSource, deleteLeadSource, deleteLeadSourceByIndex, clearAllLeadSources,
+    leadBy, addLeadBy, deleteLeadBy,
+    mapLeaders, allEmployees, toggleMapLeader, toggleCounsellor,
+    counsellors, addCounsellor, deleteCounsellor,
+    departmentDesignationMap, updateDeptMap, saveConfigItem, saveSystemConfig
   } = useAuth();
   const { showToast } = useToast();
   
-  const [activeTab, setActiveTab] = useState<'roles' | 'departments' | 'designations' | 'mappings' | 'academic' | 'system'>('roles');
+  const [activeTab, setActiveTab] = useState<'roles' | 'departments' | 'designations' | 'mappings' | 'lead_sources' | 'system'>('roles');
+  const [activeLeadSourceSubTab, setActiveLeadSourceSubTab] = useState<'manage' | 'lead_by' | 'counsellors'>('manage');
   const [newRole, setNewRole] = useState('');
   const [newDept, setNewDept] = useState('');
   const [newDesig, setNewDesig] = useState('');
+  const [newLeadSource, setNewLeadSource] = useState('');
+  const [newLeadCode, setNewLeadCode] = useState('');
+  const [newLeadBy, setNewLeadBy] = useState('');
+  const [newCounsellor, setNewCounsellor] = useState('');
   
-  // Academic State
-  const [classes, setClasses] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [sections, setSections] = useState<any[]>([]);
-  const [isFetchingAcademic, setIsFetchingAcademic] = useState(false);
-  const [newClass, setNewClass] = useState({ name: '', section: 'A', room_no: '', level: 0 });
-  const [newSubject, setNewSubject] = useState('');
-  const [newSection, setNewSection] = useState('');
+  const [editingLeadSourceId, setEditingLeadSourceId] = useState<string | null>(null);
+  const [editingLeadSourceName, setEditingLeadSourceName] = useState('');
   
-  const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isSeeding, setIsSeeding] = useState(false);
   const [selectedMappingDept, setSelectedMappingDept] = useState<string | null>(null);
 
   const [dbStatus, setDbStatus] = useState<'Checking' | 'Connected' | 'Error' | 'Disconnected'>('Checking');
@@ -47,9 +48,6 @@ const SettingsView: React.FC = () => {
 
   useEffect(() => {
     checkDatabaseConnection();
-    if (activeTab === 'academic') {
-      fetchAcademicData();
-    }
   }, [activeTab]);
 
   const checkDatabaseConnection = async (manual = false) => {
@@ -163,235 +161,257 @@ const SettingsView: React.FC = () => {
     }
   };
 
-  const fetchAcademicData = async () => {
-    if (!supabase) return;
-    setIsFetchingAcademic(true);
-    try {
-      const [classesRes, subjectsRes, sectionsRes] = await Promise.all([
-        supabase.from('classes').select('*').order('name'),
-        supabase.from('subjects').select('*').order('name'),
-        supabase.from('sections').select('*').order('name')
-      ]);
-
-      if (classesRes.error) throw classesRes.error;
-      if (subjectsRes.error) throw subjectsRes.error;
-      if (sectionsRes.error) throw sectionsRes.error;
-
-      setClasses(classesRes.data || []);
-      setSubjects(subjectsRes.data || []);
-      setSections(sectionsRes.data || []);
-    } catch (e: any) {
-      showToast("Failed to fetch academic data: " + e.message, "error");
-    } finally {
-      setIsFetchingAcademic(false);
-    }
-  };
-
-  const handleSeedData = async () => {
-    if (!supabase) return;
-    setIsSeeding(true);
-    try {
-      // Seed Classes
-      const classesToSeed = [
-        { name: 'Class 1', section: 'A', room_no: '101', level: 1 },
-        { name: 'Class 2', section: 'A', room_no: '102', level: 2 },
-        { name: 'Class 3', section: 'A', room_no: '103', level: 3 },
-        { name: 'Class 4', section: 'A', room_no: '104', level: 4 },
-        { name: 'Class 5', section: 'A', room_no: '105', level: 5 }
-      ];
-      
-      const { error: classError } = await supabase.from('classes').upsert(classesToSeed, { onConflict: 'name' });
-      if (classError) throw classError;
-
-      // Seed Subjects
-      const subjectsToSeed = [
-        { name: 'Mathematics' },
-        { name: 'Science' },
-        { name: 'English' },
-        { name: 'History' },
-        { name: 'Geography' }
-      ];
-      const { error: subjectError } = await supabase.from('subjects').upsert(subjectsToSeed, { onConflict: 'name' });
-      if (subjectError) throw subjectError;
-
-      // Seed Sections
-      const sectionsToSeed = [
-        { name: 'A' },
-        { name: 'B' },
-        { name: 'C' }
-      ];
-      const { error: sectionError } = await supabase.from('sections').upsert(sectionsToSeed, { onConflict: 'name' });
-      if (sectionError) throw sectionError;
-
-      showToast("Seed data applied successfully", "success");
-      fetchAcademicData();
-    } catch (e: any) {
-      showToast("Failed to seed data: " + e.message, "error");
-    } finally {
-      setIsSeeding(false);
-    }
-  };
-
-  const handleAddClass = async () => {
-    if (!newClass.name || !supabase) {
-      showToast("Class name is required", "error");
-      return;
-    }
-    setIsProcessing(true);
-    try {
-      const { data, error } = await supabase.from('classes').insert([
-        { 
-          name: newClass.name, 
-          section: newClass.section, 
-          room_no: newClass.room_no, 
-          level: newClass.level 
-        }
-      ]).select();
-      
-      if (error) throw error;
-      
-      setClasses([...classes, data[0]]);
-      setNewClass({ name: '', section: 'A', room_no: '', level: 0 });
-      showToast("Class added successfully", "success");
-    } catch (e: any) {
-      showToast("Failed to add class: " + e.message, "error");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleDeleteClass = async (id: string) => {
-    if (!supabase) return;
-    try {
-      const { error } = await supabase.from('classes').delete().eq('id', id);
-      if (error) throw error;
-      setClasses(classes.filter(c => c.id !== id));
-      showToast("Class removed", "success");
-    } catch (e: any) {
-      showToast("Failed to remove class: " + e.message, "error");
-    }
-  };
-
-  const handleAddSubject = async () => {
-    if (!newSubject.trim() || !supabase) {
-      showToast("Subject name is required", "error");
-      return;
-    }
-    setIsProcessing(true);
-    try {
-      const { data, error } = await supabase.from('subjects').insert([
-        { name: newSubject.trim() }
-      ]).select();
-      
-      if (error) throw error;
-      
-      setSubjects([...subjects, data[0]]);
-      setNewSubject('');
-      showToast("Subject added successfully", "success");
-    } catch (e: any) {
-      showToast("Failed to add subject: " + e.message, "error");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleDeleteSubject = async (id: string) => {
-    if (!supabase) return;
-    try {
-      const { error } = await supabase.from('subjects').delete().eq('id', id);
-      if (error) throw error;
-      setSubjects(subjects.filter(s => s.id !== id));
-      showToast("Subject removed", "success");
-    } catch (e: any) {
-      showToast("Failed to remove subject: " + e.message, "error");
-    }
-  };
-
-  const handleAddSection = async () => {
-    if (!newSection.trim() || !supabase) {
-      showToast("Section name is required", "error");
-      return;
-    }
-    setIsProcessing(true);
-    try {
-      const { data, error } = await supabase.from('sections').insert([
-        { name: newSection.trim() }
-      ]).select();
-      
-      if (error) throw error;
-      
-      setSections([...sections, data[0]]);
-      setNewSection('');
-      showToast("Section added successfully", "success");
-    } catch (e: any) {
-      showToast("Failed to add section: " + e.message, "error");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleDeleteSection = async (id: string) => {
-    if (!supabase) return;
-    try {
-      const { error } = await supabase.from('sections').delete().eq('id', id);
-      if (error) throw error;
-      setSections(sections.filter(s => s.id !== id));
-      showToast("Section removed", "success");
-    } catch (e: any) {
-      showToast("Failed to remove section: " + e.message, "error");
-    }
-  };
-
   const handleAddRole = async () => {
     if (!newRole.trim()) return;
     setIsProcessing(true);
-    await addRole(newRole);
-    showToast(`Role '${newRole}' staged`, 'info');
-    setNewRole('');
-    setIsProcessing(false);
+    try {
+      const updatedRoles = [...availableRoles, newRole.trim()];
+      await addRole(newRole);
+      await saveConfigItem('system_roles', updatedRoles);
+      showToast(`Role '${newRole}' saved to database`, 'success');
+      setNewRole('');
+    } catch (e: any) {
+      showToast(`Failed to save role: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteRole = async (role: string) => {
+    setIsProcessing(true);
+    try {
+      const updatedRoles = availableRoles.filter(r => r !== role);
+      await deleteRole(role);
+      await saveConfigItem('system_roles', updatedRoles);
+      showToast(`Role '${role}' removed and updated in database`, 'success');
+    } catch (e: any) {
+      showToast(`Failed to delete role: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleAddDept = async () => {
     if (!newDept.trim()) return;
     setIsProcessing(true);
-    await addDepartment(newDept);
-    showToast(`Department '${newDept}' staged`, 'info');
-    setNewDept('');
-    setIsProcessing(false);
+    try {
+      const updatedDepts = [...departments, newDept.trim()];
+      await addDepartment(newDept);
+      await saveConfigItem('system_departments', updatedDepts);
+      showToast(`Department '${newDept}' saved to database`, 'success');
+      setNewDept('');
+    } catch (e: any) {
+      showToast(`Failed to save department: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteDept = async (dept: string) => {
+    setIsProcessing(true);
+    try {
+      const updatedDepts = departments.filter(d => d !== dept);
+      await deleteDepartment(dept);
+      await saveConfigItem('system_departments', updatedDepts);
+      showToast(`Department '${dept}' removed and updated in database`, 'success');
+    } catch (e: any) {
+      showToast(`Failed to delete department: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleAddDesig = async () => {
     if (!newDesig.trim()) return;
     setIsProcessing(true);
-    await addDesignation(newDesig);
-    showToast(`Designation '${newDesig}' staged`, 'info');
-    setNewDesig('');
-    setIsProcessing(false);
-  };
-
-  const persistConfig = async () => {
-    setIsSaving(true);
     try {
-      await saveSystemConfig({
-        classes,
-        subjects,
-        sections
-      });
-      showToast("Infrastructure state persisted to database", "success");
+      const updatedDesigs = [...designations, newDesig.trim()];
+      await addDesignation(newDesig);
+      await saveConfigItem('system_designations', updatedDesigs);
+      showToast(`Designation '${newDesig}' saved to database`, 'success');
+      setNewDesig('');
     } catch (e: any) {
-      showToast("Sync failed: " + e.message, "error");
+      showToast(`Failed to save designation: ${e.message}`, 'error');
     } finally {
-      setIsSaving(false);
+      setIsProcessing(false);
     }
   };
 
-  const toggleDesignationInMap = (desig: string) => {
+  const handleDeleteDesig = async (desig: string) => {
+    setIsProcessing(true);
+    try {
+      const updatedDesigs = designations.filter(d => d !== desig);
+      await deleteDesignation(desig);
+      await saveConfigItem('system_designations', updatedDesigs);
+      showToast(`Designation '${desig}' removed and updated in database`, 'success');
+    } catch (e: any) {
+      showToast(`Failed to delete designation: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAddLeadSource = async () => {
+    if (!newLeadSource.trim() || !newLeadCode.trim()) return;
+    
+    // Auto-generate a unique ID
+    const autoId = `LS-${Date.now()}`;
+
+    setIsProcessing(true);
+    try {
+      const updatedSources = [...leadSources, { id: autoId, name: newLeadSource.trim(), code: newLeadCode.trim() }];
+      await addLeadSource(autoId, newLeadSource, newLeadCode);
+      await saveConfigItem('lead_source', updatedSources);
+      showToast(`Lead Source '${newLeadSource}' saved to database`, 'success');
+      setNewLeadSource('');
+      setNewLeadCode('');
+    } catch (e: any) {
+      showToast(`Failed to save lead source: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleFixDuplicateIds = async () => {
+    setIsProcessing(true);
+    try {
+      const seenIds = new Set<string>();
+      const cleanedSources = leadSources.map(source => {
+        let uniqueId = source.id;
+        let counter = 1;
+        while (seenIds.has(uniqueId)) {
+          uniqueId = `${source.id}_${counter}`;
+          counter++;
+        }
+        seenIds.add(uniqueId);
+        return { ...source, id: uniqueId };
+      });
+
+      // Update state
+      cleanedSources.forEach(source => {
+        updateLeadSource(source.id, source);
+      });
+      
+      // Update DB
+      await saveConfigItem('lead_source', cleanedSources);
+      showToast(`Duplicate IDs fixed and saved to database`, 'success');
+      
+      // Force reload state by re-fetching or just updating locally
+      // Since we updated state and DB, it should be fine.
+    } catch (e: any) {
+      showToast(`Failed to fix duplicate IDs: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteLeadSource = async (id: string, index: number) => {
+    setIsProcessing(true);
+    try {
+      // Use index-based filtering to ensure only the selected item is removed,
+      // even if IDs are duplicated in the current database state.
+      const updatedSources = leadSources.filter((_, i) => i !== index);
+      await deleteLeadSourceByIndex(index);
+      await saveConfigItem('lead_source', updatedSources);
+      showToast(`Lead Source removed and updated in database`, 'success');
+    } catch (e: any) {
+      showToast(`Failed to delete lead source: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleUpdateLeadSource = async (id: string, data: any) => {
+    setIsProcessing(true);
+    try {
+      const updatedSources = leadSources.map(ls => ls.id === id ? { ...ls, ...data } : ls);
+      updateLeadSource(id, data);
+      await saveConfigItem('lead_source', updatedSources);
+      showToast(`Lead Source updated in database`, 'success');
+      setEditingLeadSourceId(null);
+    } catch (e: any) {
+      showToast(`Failed to update lead source: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAddLeadBy = async () => {
+    if (!newLeadBy.trim()) return;
+    setIsProcessing(true);
+    try {
+      const updatedLeadBy = [...leadBy, newLeadBy.trim()];
+      await addLeadBy(newLeadBy);
+      await saveConfigItem('lead_by', updatedLeadBy);
+      showToast(`Lead Access '${newLeadBy}' saved to database`, 'success');
+      setNewLeadBy('');
+    } catch (e: any) {
+      showToast(`Failed to save lead access: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteLeadBy = async (item: string) => {
+    setIsProcessing(true);
+    try {
+      const updatedLeadBy = leadBy.filter(l => l !== item);
+      await deleteLeadBy(item);
+      await saveConfigItem('lead_by', updatedLeadBy);
+      showToast(`Lead Access removed and updated in database`, 'success');
+    } catch (e: any) {
+      showToast(`Failed to delete lead access: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAddCounsellor = async () => {
+    if (!newCounsellor.trim()) return;
+    setIsProcessing(true);
+    try {
+      // Note: This old logic is deprecated in favor of toggleCounsellor
+      await addCounsellor(newCounsellor);
+      setNewCounsellor('');
+      showToast(`Counsellor added`, 'success');
+    } catch (e: any) {
+      showToast(`Failed to save counsellor: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDeleteCounsellor = async (item: string) => {
+    setIsProcessing(true);
+    try {
+      await deleteCounsellor(item);
+      showToast(`Counsellor removed`, 'success');
+    } catch (e: any) {
+      showToast(`Failed to delete counsellor: ${e.message}`, 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const toggleDesignationInMap = async (desig: string) => {
     if (!selectedMappingDept) return;
     const current = departmentDesignationMap[selectedMappingDept] || [];
     const updated = current.includes(desig) 
       ? current.filter(d => d !== desig) 
       : [...current, desig];
+    
     updateDeptMap(selectedMappingDept, updated);
+    
+    try {
+      const updatedMap = {
+        ...departmentDesignationMap,
+        [selectedMappingDept]: updated
+      };
+      await saveConfigItem('dept_designation_map', updatedMap);
+      showToast(`Mapping updated in database`, 'success');
+    } catch (e: any) {
+      showToast(`Failed to update mapping: ${e.message}`, 'error');
+    }
   };
 
   const isCoreRole = (role: string) => ['superadmin', 'administrator', 'editor', 'teacher', 'viewer'].includes(role);
@@ -409,14 +429,6 @@ const SettingsView: React.FC = () => {
           </div>
           <p className="text-supabase-muted text-sm italic">System-wide configuration and organizational scaling.</p>
         </div>
-        <button 
-          onClick={persistConfig}
-          disabled={isSaving}
-          className="flex items-center gap-2 px-6 py-2.5 bg-supabase-green text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover disabled:opacity-50 transition-all shadow-lg shadow-supabase-green/10"
-        >
-          {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          Persist All Changes
-        </button>
       </div>
 
       <div className="flex border-b border-supabase-border gap-6 overflow-x-auto scrollbar-hide">
@@ -425,7 +437,7 @@ const SettingsView: React.FC = () => {
           { id: 'departments', icon: Building2, label: 'Departments' },
           { id: 'designations', icon: Briefcase, label: 'Designations' },
           { id: 'mappings', icon: Link2, label: 'Relationship Mapping' },
-          { id: 'academic', icon: BookOpen, label: 'Academic' },
+          { id: 'lead_sources', icon: Share2, label: 'Work Access' },
           { id: 'system', icon: Server, label: 'System' }
         ].map(tab => (
           <button 
@@ -459,7 +471,7 @@ const SettingsView: React.FC = () => {
                      <Shield size={16} className={isCoreRole(role) ? 'text-supabase-muted' : 'text-supabase-green'} />
                      <span className="text-[11px] font-black uppercase tracking-widest">{role}</span>
                    </div>
-                   {!isCoreRole(role) && <button onClick={() => deleteRole(role)} className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>}
+                   {!isCoreRole(role) && <button onClick={() => handleDeleteRole(role)} className="text-supabase-muted hover:text-red-500 opacity-0 group-hover:opacity-100 disabled:opacity-50" disabled={isProcessing}><Trash2 size={14} /></button>}
                  </div>
                ))}
             </div>
@@ -479,7 +491,7 @@ const SettingsView: React.FC = () => {
                {departments.map(dept => (
                  <div key={dept} className="flex items-center justify-between p-4 bg-supabase-panel border border-supabase-border rounded-xl group">
                    <div className="flex items-center gap-3"><Building2 size={16} className="text-supabase-muted" /><span className="text-[11px] font-black uppercase tracking-widest">{dept}</span></div>
-                   <button onClick={() => deleteDepartment(dept)} className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
+                   <button onClick={() => handleDeleteDept(dept)} className="text-supabase-muted hover:text-red-500 opacity-0 group-hover:opacity-100 disabled:opacity-50" disabled={isProcessing}><Trash2 size={14} /></button>
                  </div>
                ))}
             </div>
@@ -499,7 +511,7 @@ const SettingsView: React.FC = () => {
                {designations.map(desig => (
                  <div key={desig} className="flex items-center justify-between p-4 bg-supabase-panel border border-supabase-border rounded-xl group">
                    <div className="flex items-center gap-3"><Award size={16} className="text-supabase-muted" /><span className="text-[11px] font-black uppercase tracking-widest">{desig}</span></div>
-                   <button onClick={() => deleteDesignation(desig)} className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
+                   <button onClick={() => handleDeleteDesig(desig)} className="text-supabase-muted hover:text-red-500 opacity-0 group-hover:opacity-100 disabled:opacity-50" disabled={isProcessing}><Trash2 size={14} /></button>
                  </div>
                ))}
             </div>
@@ -558,209 +570,409 @@ const SettingsView: React.FC = () => {
         )}
 
 
-        {activeTab === 'academic' && (
-          <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
-            {/* Classes Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="md:col-span-1 space-y-4">
-                <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 space-y-4">
+        {activeTab === 'lead_sources' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-400">
+            <div className="flex border-b border-supabase-border/50 gap-4 mb-4">
+              <button 
+                onClick={() => setActiveLeadSourceSubTab('manage')}
+                className={`pb-2 text-[9px] font-black uppercase tracking-widest transition-all relative ${
+                  activeLeadSourceSubTab === 'manage' ? 'text-supabase-green' : 'text-supabase-muted hover:text-supabase-text'
+                }`}
+              >
+                Manage Lead Sources
+                {activeLeadSourceSubTab === 'manage' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-supabase-green"></div>}
+              </button>
+              <button 
+                onClick={() => setActiveLeadSourceSubTab('lead_by')}
+                className={`pb-2 text-[9px] font-black uppercase tracking-widest transition-all relative ${
+                  activeLeadSourceSubTab === 'lead_by' ? 'text-supabase-green' : 'text-supabase-muted hover:text-supabase-text'
+                }`}
+              >
+                Lead Access
+                {activeLeadSourceSubTab === 'lead_by' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-supabase-green"></div>}
+              </button>
+              <button 
+                onClick={() => setActiveLeadSourceSubTab('counsellors')}
+                className={`pb-2 text-[9px] font-black uppercase tracking-widest transition-all relative ${
+                  activeLeadSourceSubTab === 'counsellors' ? 'text-supabase-green' : 'text-supabase-muted hover:text-supabase-text'
+                }`}
+              >
+                Counsellors
+                {activeLeadSourceSubTab === 'counsellors' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-supabase-green"></div>}
+              </button>
+            </div>
+
+            {activeLeadSourceSubTab === 'manage' && (
+              <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text flex items-center gap-2">
-                    <Plus size={14} className="text-supabase-green" />
-                    Add New Class
+                    <Share2 size={14} className="text-supabase-green" />
+                    Manage Lead Sources
                   </h3>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Class Name</label>
-                      <input 
-                        type="text" 
-                        value={newClass.name} 
-                        onChange={e => setNewClass({...newClass, name: e.target.value})} 
-                        placeholder="e.g. Class 10" 
-                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Section</label>
-                        {sections.length > 0 ? (
-                          <select 
-                            value={newClass.section} 
-                            onChange={e => setNewClass({...newClass, section: e.target.value})} 
-                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green"
-                          >
-                            <option value="">Select</option>
-                            {sections.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-                          </select>
-                        ) : (
-                          <input 
-                            type="text" 
-                            value={newClass.section} 
-                            onChange={e => setNewClass({...newClass, section: e.target.value})} 
-                            placeholder="A" 
-                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
-                          />
-                        )}
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Room No</label>
-                        <input 
-                          type="text" 
-                          value={newClass.room_no} 
-                          onChange={e => setNewClass({...newClass, room_no: e.target.value})} 
-                          placeholder="101" 
-                          className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Level</label>
-                      <select 
-                        value={newClass.level} 
-                        onChange={e => setNewClass({...newClass, level: parseInt(e.target.value)})} 
-                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green"
-                      >
-                        <option value={0}>Junior</option>
-                        <option value={1}>Senior</option>
-                      </select>
-                    </div>
-                    <button 
-                      onClick={handleAddClass}
-                      disabled={isProcessing}
-                      className="w-full py-2.5 bg-supabase-green text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all flex items-center justify-center gap-2"
+                  {leadSources.length > 0 && (
+                    <button
+                      onClick={handleFixDuplicateIds}
+                      className="text-[9px] font-black uppercase tracking-widest text-supabase-muted hover:text-supabase-green transition-colors flex items-center gap-1.5"
                     >
-                      {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                      Add Class
+                      <RefreshCw size={12} className={isProcessing ? 'animate-spin' : ''} />
+                      Fix Duplicate IDs
                     </button>
+                  )}
+                </div>
+                
+                <div className="flex gap-2 mb-8">
+                  <div className="flex-[0.3]">
+                    <input
+                      type="text"
+                      value={newLeadCode}
+                      onChange={(e) => setNewLeadCode(e.target.value)}
+                      placeholder="Lead Code..."
+                      className="w-full bg-supabase-sidebar border border-supabase-border rounded-xl py-3 px-4 text-sm focus:outline-none focus:border-supabase-green transition-colors"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddLeadSource()}
+                    />
+                  </div>
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={16} />
+                    <input
+                      type="text"
+                      value={newLeadSource}
+                      onChange={(e) => setNewLeadSource(e.target.value)}
+                      placeholder="Enter new lead source (e.g. Facebook, Referral)..."
+                      className="w-full bg-supabase-sidebar border border-supabase-border rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-supabase-green transition-colors"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddLeadSource()}
+                    />
+                  </div>
+                  <button
+                    onClick={handleAddLeadSource}
+                    disabled={isProcessing || !newLeadSource.trim() || !newLeadCode.trim()}
+                    className="bg-supabase-green text-supabase-bg px-6 rounded-xl font-bold text-xs uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                    Add
+                  </button>
+                </div>
+
+                <div className="overflow-hidden border border-supabase-border rounded-xl">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-supabase-sidebar border-b border-supabase-border">
+                        <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-supabase-muted w-24">Lead Code</th>
+                        <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-supabase-muted">Lead Source Name</th>
+                        <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-supabase-muted w-16 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-supabase-border/30">
+                      {leadSources.map((source, index) => (
+                        <tr key={`${source.id}-${index}`} className="hover:bg-supabase-hover transition-colors group">
+                          <td className="px-4 py-3">
+                            <span className="text-[10px] font-mono text-supabase-muted bg-supabase-panel px-1.5 py-0.5 rounded border border-supabase-border">{source.code || source.id}</span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {editingLeadSourceId === source.id ? (
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editingLeadSourceName}
+                                  onChange={(e) => setEditingLeadSourceName(e.target.value)}
+                                  className="flex-1 bg-supabase-sidebar border border-supabase-border rounded-lg py-1 px-2 text-sm focus:outline-none focus:border-supabase-green"
+                                  autoFocus
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleUpdateLeadSource(source.id, { name: editingLeadSourceName });
+                                    if (e.key === 'Escape') setEditingLeadSourceId(null);
+                                  }}
+                                />
+                                <button 
+                                  onClick={() => handleUpdateLeadSource(source.id, { name: editingLeadSourceName })}
+                                  className="text-supabase-green hover:opacity-80"
+                                >
+                                  <Check size={14} />
+                                </button>
+                                <button 
+                                  onClick={() => setEditingLeadSourceId(null)}
+                                  className="text-supabase-muted hover:text-supabase-text"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium text-supabase-text">{source.name}</span>
+                                <button 
+                                  onClick={() => {
+                                    setEditingLeadSourceId(source.id);
+                                    setEditingLeadSourceName(source.name);
+                                  }}
+                                  className="text-supabase-muted hover:text-supabase-green opacity-0 group-hover:opacity-100 transition-all text-[10px] font-black uppercase tracking-widest"
+                                >
+                                  Edit
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => handleDeleteLeadSource(source.id, index)}
+                              className="text-supabase-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {leadSources.length === 0 && (
+                    <div className="p-8 text-center text-supabase-muted italic text-xs">
+                      No lead sources defined.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeLeadSourceSubTab === 'lead_by' && (
+              <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text flex items-center gap-2">
+                    <UserCheck size={14} className="text-supabase-green" />
+                    Lead Access (Map Leaders)
+                  </h3>
+                  <span className="text-[10px] text-supabase-muted italic">Map employees to lead sources</span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left Column: All Employees */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-supabase-muted">All Employees</span>
+                      <span className="text-[10px] text-supabase-muted">{allEmployees.length} Total</span>
+                    </div>
+                    <div className="border border-supabase-border rounded-xl overflow-hidden bg-supabase-sidebar max-h-[400px] overflow-y-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-supabase-panel border-b border-supabase-border">
+                            <th className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-supabase-muted">Name</th>
+                            <th className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-supabase-muted text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-supabase-border/30">
+                          {allEmployees.map((emp) => {
+                            const isEnabled = mapLeaders.some(ml => ml.uuid === emp.id);
+                            return (
+                              <tr key={emp.id} className="hover:bg-supabase-hover transition-colors group">
+                                <td className="px-4 py-2">
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium text-supabase-text">{emp.full_name}</span>
+                                    <span className="text-[9px] font-mono text-supabase-muted">{emp.id?.substring(0, 8) || 'N/A'}...</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                  <button
+                                    onClick={() => toggleMapLeader(emp)}
+                                    disabled={isProcessing}
+                                    className={`p-1.5 rounded-lg transition-all ${
+                                      isEnabled 
+                                        ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20' 
+                                        : 'text-supabase-muted hover:text-supabase-green hover:bg-supabase-green/10'
+                                    }`}
+                                    title={isEnabled ? "Disable" : "Enable"}
+                                  >
+                                    {isEnabled ? <Ban size={14} /> : <UserPlus size={14} />}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {allEmployees.length === 0 && (
+                            <tr>
+                              <td colSpan={2} className="px-4 py-8 text-center text-supabase-muted italic text-xs">
+                                No employees found.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Enabled Employees */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-supabase-muted">Enabled Leaders</span>
+                      <span className="text-[10px] text-supabase-muted">{mapLeaders.length} Enabled</span>
+                    </div>
+                    <div className="border border-supabase-border rounded-xl overflow-hidden bg-supabase-sidebar max-h-[400px] overflow-y-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-supabase-panel border-b border-supabase-border">
+                            <th className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-supabase-muted">ID</th>
+                            <th className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-supabase-muted">Name</th>
+                            <th className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-supabase-muted text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-supabase-border/30">
+                          {mapLeaders.map((leader) => (
+                            <tr key={leader.id} className="hover:bg-supabase-hover transition-colors group">
+                              <td className="px-4 py-2">
+                                <span className="text-[10px] font-mono text-supabase-muted bg-supabase-panel px-1.5 py-0.5 rounded border border-supabase-border">{leader.id}</span>
+                              </td>
+                              <td className="px-4 py-2">
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-supabase-text">{leader.name}</span>
+                                  <span className="text-[9px] font-mono text-supabase-muted">{leader.uuid?.substring(0, 8) || 'N/A'}...</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                <button
+                                  onClick={() => {
+                                    const emp = allEmployees.find(e => e.id === leader.uuid);
+                                    if (emp) toggleMapLeader(emp);
+                                  }}
+                                  disabled={isProcessing}
+                                  className="p-1.5 text-red-500 hover:text-red-600 transition-all"
+                                  title="Disable"
+                                >
+                                  <Ban size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {mapLeaders.length === 0 && (
+                            <tr>
+                              <td colSpan={3} className="px-4 py-8 text-center text-supabase-muted italic text-xs">
+                                No leaders enabled.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
+            )}
 
-              <div className="md:col-span-2 space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text">Existing Classes</h3>
-                {isFetchingAcademic ? (
-                  <div className="flex justify-center py-10"><Loader2 className="animate-spin text-supabase-green" /></div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {classes.map(cls => (
-                      <div key={cls.id} className="p-4 bg-supabase-panel border border-supabase-border rounded-xl flex items-center justify-between group">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-supabase-green/10 flex items-center justify-center text-supabase-green font-black text-[10px]">
-                            {cls.name.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-[11px] font-black uppercase tracking-widest">{cls.name}</p>
-                            <p className="text-[9px] text-supabase-muted uppercase tracking-widest">Sec: {cls.section} • Room: {cls.room_no}</p>
-                          </div>
-                        </div>
-                        <button onClick={() => handleDeleteClass(cls.id)} className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Subjects Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-supabase-border">
-              <div className="md:col-span-1 space-y-4">
-                <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 space-y-4">
+            {activeLeadSourceSubTab === 'counsellors' && (
+              <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6">
+                <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text flex items-center gap-2">
-                    <Plus size={14} className="text-supabase-green" />
-                    Add New Subject
+                    <User size={14} className="text-supabase-green" />
+                    Manage Counsellors
                   </h3>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Subject Name</label>
-                      <input 
-                        type="text" 
-                        value={newSubject} 
-                        onChange={e => setNewSubject(e.target.value)} 
-                        placeholder="e.g. Mathematics" 
-                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
-                      />
+                  <span className="text-[10px] text-supabase-muted italic">Map employees as counsellors</span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left Column: All Employees */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-supabase-muted">All Employees</span>
+                      <span className="text-[10px] text-supabase-muted">{allEmployees.length} Total</span>
                     </div>
-                    <button 
-                      onClick={handleAddSubject}
-                      disabled={isProcessing}
-                      className="w-full py-2.5 bg-supabase-green text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all flex items-center justify-center gap-2"
-                    >
-                      {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                      Add Subject
-                    </button>
+                    <div className="border border-supabase-border rounded-xl overflow-hidden bg-supabase-sidebar max-h-[400px] overflow-y-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-supabase-panel border-b border-supabase-border">
+                            <th className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-supabase-muted">Name</th>
+                            <th className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-supabase-muted text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-supabase-border/30">
+                          {allEmployees.map((emp) => {
+                            const isEnabled = counsellors.some(c => c.uuid === emp.id);
+                            return (
+                              <tr key={emp.id} className="hover:bg-supabase-hover transition-colors group">
+                                <td className="px-4 py-2">
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium text-supabase-text">{emp.full_name}</span>
+                                    <span className="text-[9px] font-mono text-supabase-muted">{emp.id?.substring(0, 8) || 'N/A'}...</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-2 text-right">
+                                  <button
+                                    onClick={() => toggleCounsellor(emp)}
+                                    disabled={isProcessing}
+                                    className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                                      isEnabled 
+                                        ? 'text-red-500 bg-red-500/10 hover:bg-red-500/20' 
+                                        : 'text-supabase-muted hover:text-supabase-green hover:bg-supabase-green/10'
+                                    }`}
+                                    title={isEnabled ? "Disable" : "Enable"}
+                                  >
+                                    {isEnabled ? <Ban size={14} /> : <UserPlus size={14} />}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {allEmployees.length === 0 && (
+                            <tr>
+                              <td colSpan={2} className="px-4 py-8 text-center text-supabase-muted italic text-xs">
+                                No employees found.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Enabled Counsellors */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-supabase-muted">Enabled Counsellors</span>
+                      <span className="text-[10px] text-supabase-muted">{counsellors.length} Enabled</span>
+                    </div>
+                    <div className="border border-supabase-border rounded-xl overflow-hidden bg-supabase-sidebar max-h-[400px] overflow-y-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-supabase-panel border-b border-supabase-border">
+                            <th className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-supabase-muted">ID</th>
+                            <th className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-supabase-muted">Name</th>
+                            <th className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-supabase-muted text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-supabase-border/30">
+                          {counsellors.map((c) => (
+                            <tr key={c.id} className="hover:bg-supabase-hover transition-colors group">
+                              <td className="px-4 py-2">
+                                <span className="text-[10px] font-mono text-supabase-muted bg-supabase-panel px-1.5 py-0.5 rounded border border-supabase-border">{c.id}</span>
+                              </td>
+                              <td className="px-4 py-2">
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-supabase-text">{c.name}</span>
+                                  <span className="text-[9px] font-mono text-supabase-muted">{c.uuid?.substring(0, 8) || 'N/A'}...</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                <button
+                                  onClick={() => {
+                                    const emp = allEmployees.find(e => e.id === c.uuid);
+                                    if (emp) toggleCounsellor(emp);
+                                  }}
+                                  disabled={isProcessing}
+                                  className="p-1.5 text-red-500 hover:text-red-600 transition-all cursor-pointer"
+                                  title="Disable"
+                                >
+                                  <Ban size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {counsellors.length === 0 && (
+                            <tr>
+                              <td colSpan={3} className="px-4 py-8 text-center text-supabase-muted italic text-xs">
+                                No counsellors enabled.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
-
-              <div className="md:col-span-2 space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text">Existing Subjects</h3>
-                {isFetchingAcademic ? (
-                  <div className="flex justify-center py-10"><Loader2 className="animate-spin text-supabase-green" /></div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {subjects.map(sub => (
-                      <div key={sub.id} className="p-4 bg-supabase-panel border border-supabase-border rounded-xl flex items-center justify-between group">
-                        <div className="flex items-center gap-3">
-                          <BookOpen size={16} className="text-supabase-green" />
-                          <span className="text-[11px] font-black uppercase tracking-widest">{sub.name}</span>
-                        </div>
-                        <button onClick={() => handleDeleteSubject(sub.id)} className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Sections Section */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-supabase-border">
-              <div className="md:col-span-1 space-y-4">
-                <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-6 space-y-4">
-                  <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text flex items-center gap-2">
-                    <Plus size={14} className="text-supabase-green" />
-                    Add New Section
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Section Name</label>
-                      <input 
-                        type="text" 
-                        value={newSection} 
-                        onChange={e => setNewSection(e.target.value)} 
-                        placeholder="e.g. A, B, C" 
-                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
-                      />
-                    </div>
-                    <button 
-                      onClick={handleAddSection}
-                      disabled={isProcessing}
-                      className="w-full py-2.5 bg-supabase-green text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all flex items-center justify-center gap-2"
-                    >
-                      {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                      Add Section
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="md:col-span-2 space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text">Existing Sections</h3>
-                {isFetchingAcademic ? (
-                  <div className="flex justify-center py-10"><Loader2 className="animate-spin text-supabase-green" /></div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {sections.map(sec => (
-                      <div key={sec.id} className="p-4 bg-supabase-panel border border-supabase-border rounded-xl flex items-center justify-between group">
-                        <div className="flex items-center gap-3">
-                          <Layers size={16} className="text-supabase-green" />
-                          <span className="text-[11px] font-black uppercase tracking-widest">{sec.name}</span>
-                        </div>
-                        <button onClick={() => handleDeleteSection(sec.id)} className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><Trash2 size={14} /></button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -917,29 +1129,6 @@ const SettingsView: React.FC = () => {
                   </h3>
                 </div>
                 <div className="p-6 space-y-6">
-                  <div className="p-4 bg-supabase-green/5 border border-supabase-green/20 rounded-xl space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-supabase-green/20 flex items-center justify-center text-supabase-green">
-                        <Layers size={18} />
-                      </div>
-                      <div>
-                        <p className="text-xs font-black text-supabase-text uppercase tracking-tight">Academic Infrastructure</p>
-                        <p className="text-[10px] text-supabase-muted uppercase tracking-widest">Classes, Subjects, Sections</p>
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-supabase-muted leading-relaxed">
-                      Populate your database with a standard academic structure. This will add sample classes (1-5), core subjects, and default sections.
-                    </p>
-                    <button 
-                      onClick={handleSeedData}
-                      disabled={isSeeding || !supabase}
-                      className="w-full py-3 bg-supabase-green text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-supabase-greenHover transition-all flex items-center justify-center gap-2 shadow-lg shadow-supabase-green/10 disabled:opacity-50"
-                    >
-                      {isSeeding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                      Apply Academic Seed Data
-                    </button>
-                  </div>
-
                   <div className="p-4 bg-supabase-sidebar border border-supabase-border rounded-xl space-y-3 opacity-60">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-supabase-panel flex items-center justify-center text-supabase-muted">
@@ -980,7 +1169,14 @@ const SettingsView: React.FC = () => {
                   <p className="text-[10px] text-supabase-muted font-mono">{new Date().toLocaleString()}</p>
                 </div>
                 <button 
-                  onClick={persistConfig}
+                  onClick={async () => {
+                    try {
+                      await saveSystemConfig();
+                      showToast("Full system backup successful", "success");
+                    } catch (e: any) {
+                      showToast("Backup failed: " + e.message, "error");
+                    }
+                  }}
                   className="px-6 py-2.5 bg-supabase-panel border border-supabase-border text-supabase-text rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-supabase-green transition-all"
                 >
                   Full System Backup

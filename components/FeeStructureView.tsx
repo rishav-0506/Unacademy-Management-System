@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Save, Loader2, BookOpen, DollarSign, Layers } from 'lucide-react';
+import { Plus, Trash2, Save, Loader2, BookOpen, DollarSign, Layers, Filter, Calendar, ListFilter } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { useToast } from '../context/ToastContext';
+import { academicService } from '../services/academicService';
 
 interface FeeItem {
   id: string;
@@ -10,27 +11,60 @@ interface FeeItem {
   amount: number;
   frequency: 'monthly' | 'quarterly' | 'yearly' | 'one-time';
   description?: string;
+  academic_year?: string;
+  term?: string;
+  class_name?: string;
 }
 
 const FeeStructureView: React.FC = () => {
   const { showToast } = useToast();
   const [feeItems, setFeeItems] = useState<FeeItem[]>([]);
+  const [academicYears, setAcademicYears] = useState<any[]>([]);
+  const [terms, setTerms] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const [filterYear, setFilterYear] = useState<string>('all');
+  const [filterTerm, setFilterTerm] = useState<string>('all');
+  const [filterClass, setFilterClass] = useState<string>('all');
+  const [groupBy, setGroupBy] = useState<'none' | 'year' | 'term' | 'class'>('none');
+
   const [newFee, setNewFee] = useState({
     name: '',
     amount: '',
     frequency: 'monthly' as const,
-    description: ''
+    description: '',
+    academic_year: '',
+    term: '',
+    class_name: ''
   });
 
   useEffect(() => {
-    fetchFeeStructure();
+    fetchInitialData();
   }, []);
+
+  const fetchInitialData = async () => {
+    setIsLoading(true);
+    try {
+      const [yearsData, termsData, classesRes] = await Promise.all([
+        academicService.getAcademicYears(),
+        academicService.getTerms(),
+        supabase.from('classes').select('*').order('name')
+      ]);
+      setAcademicYears(yearsData);
+      setTerms(termsData);
+      setClasses(classesRes.data || []);
+      await fetchFeeStructure();
+    } catch (e: any) {
+      showToast("Failed to fetch initial data: " + e.message, "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchFeeStructure = async () => {
     if (!supabase) return;
-    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('fee_structure')
@@ -41,8 +75,6 @@ const FeeStructureView: React.FC = () => {
       setFeeItems(data || []);
     } catch (e: any) {
       showToast("Failed to fetch fee structure: " + e.message, "error");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -60,14 +92,25 @@ const FeeStructureView: React.FC = () => {
           name: newFee.name,
           amount: parseFloat(newFee.amount),
           frequency: newFee.frequency,
-          description: newFee.description
+          description: newFee.description,
+          academic_year: newFee.academic_year || null,
+          term: newFee.term || null,
+          class_name: newFee.class_name || null
         }])
         .select();
 
       if (error) throw error;
       
       setFeeItems([data[0], ...feeItems]);
-      setNewFee({ name: '', amount: '', frequency: 'monthly', description: '' });
+      setNewFee({ 
+        name: '', 
+        amount: '', 
+        frequency: 'monthly', 
+        description: '',
+        academic_year: '',
+        term: '',
+        class_name: ''
+      });
       showToast("Fee item added successfully", "success");
     } catch (e: any) {
       showToast("Failed to add fee: " + e.message, "error");
@@ -119,6 +162,47 @@ const FeeStructureView: React.FC = () => {
                   className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green" 
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Academic Year</label>
+                  <select 
+                    value={newFee.academic_year} 
+                    onChange={e => setNewFee({...newFee, academic_year: e.target.value})}
+                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green"
+                  >
+                    <option value="">General</option>
+                    {academicYears.map(year => (
+                      <option key={year.id} value={year.name}>{year.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Term</label>
+                  <select 
+                    value={newFee.term} 
+                    onChange={e => setNewFee({...newFee, term: e.target.value})}
+                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green"
+                  >
+                    <option value="">General</option>
+                    {terms.map(term => (
+                      <option key={term.id} value={term.name}>{term.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Target Class</label>
+                <select 
+                  value={newFee.class_name} 
+                  onChange={e => setNewFee({...newFee, class_name: e.target.value})}
+                  className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-3 py-2 text-sm text-supabase-text outline-none focus:border-supabase-green"
+                >
+                  <option value="">All Classes</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.name}>{cls.name}</option>
+                  ))}
+                </select>
+              </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-supabase-muted uppercase tracking-widest">Amount</label>
                 <div className="relative">
@@ -169,7 +253,74 @@ const FeeStructureView: React.FC = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-4 flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Filter size={14} className="text-supabase-green" />
+              <span className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">Filter:</span>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              <select 
+                value={filterYear}
+                onChange={e => setFilterYear(e.target.value)}
+                className="bg-supabase-bg border border-supabase-border rounded px-2 py-1 text-[10px] font-bold text-supabase-text outline-none focus:border-supabase-green"
+              >
+                <option value="all">All Years</option>
+                <option value="">General</option>
+                {academicYears.map(year => (
+                  <option key={year.id} value={year.name}>{year.name}</option>
+                ))}
+              </select>
+
+              <select 
+                value={filterTerm}
+                onChange={e => setFilterTerm(e.target.value)}
+                className="bg-supabase-bg border border-supabase-border rounded px-2 py-1 text-[10px] font-bold text-supabase-text outline-none focus:border-supabase-green"
+              >
+                <option value="all">All Terms</option>
+                <option value="">General</option>
+                {terms.map(term => (
+                  <option key={term.id} value={term.name}>{term.name}</option>
+                ))}
+              </select>
+
+              <select 
+                value={filterClass}
+                onChange={e => setFilterClass(e.target.value)}
+                className="bg-supabase-bg border border-supabase-border rounded px-2 py-1 text-[10px] font-bold text-supabase-text outline-none focus:border-supabase-green"
+              >
+                <option value="all">All Classes</option>
+                <option value="">General</option>
+                {classes.map(cls => (
+                  <option key={cls.id} value={cls.name}>{cls.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="h-4 w-px bg-supabase-border mx-2 hidden md:block" />
+
+            <div className="flex items-center gap-2">
+              <ListFilter size={14} className="text-supabase-green" />
+              <span className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">Group By:</span>
+              <div className="flex bg-supabase-bg rounded p-0.5 border border-supabase-border">
+                {(['none', 'year', 'term', 'class'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setGroupBy(mode)}
+                    className={`px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest transition-all ${
+                      groupBy === mode 
+                        ? 'bg-supabase-green text-black' 
+                        : 'text-supabase-muted hover:text-supabase-text'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-xs font-black uppercase tracking-widest text-supabase-text">Current Fee Structure</h3>
             <div className="text-[10px] text-supabase-muted uppercase tracking-widest font-black">
@@ -183,32 +334,66 @@ const FeeStructureView: React.FC = () => {
               <p className="text-xs font-black uppercase tracking-widest text-supabase-muted">Synchronizing Schema...</p>
             </div>
           ) : feeItems.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {feeItems.map(fee => (
-                <div key={fee.id} className="bg-supabase-panel border border-supabase-border rounded-2xl p-5 group hover:border-supabase-green/50 transition-all">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-2 bg-supabase-green/10 text-supabase-green rounded-lg">
-                      <DollarSign size={20} />
+            <div className="space-y-8">
+              {(() => {
+                const filtered = feeItems.filter(item => {
+                  const yearMatch = filterYear === 'all' || (item.academic_year || '') === filterYear;
+                  const termMatch = filterTerm === 'all' || (item.term || '') === filterTerm;
+                  const classMatch = filterClass === 'all' || (item.class_name || '') === filterClass;
+                  return yearMatch && termMatch && classMatch;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-20 bg-supabase-panel border border-supabase-border border-dashed rounded-2xl text-supabase-muted">
+                      <Filter size={48} className="mb-4 opacity-20" />
+                      <p className="text-xs font-black uppercase tracking-widest">No components match your filters</p>
                     </div>
-                    <button 
-                      onClick={() => handleDeleteFee(fee.id)}
-                      className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                  );
+                }
+
+                if (groupBy === 'none') {
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {filtered.map(fee => (
+                        <FeeCard key={fee.id} fee={fee} onDelete={handleDeleteFee} />
+                      ))}
+                    </div>
+                  );
+                }
+
+                const groups: Record<string, FeeItem[]> = {};
+                filtered.forEach(item => {
+                  let key = 'General';
+                  if (groupBy === 'year') key = item.academic_year || 'General';
+                  else if (groupBy === 'term') key = item.term || 'General';
+                  else if (groupBy === 'class') key = item.class_name || 'All Classes';
+                  
+                  if (!groups[key]) groups[key] = [];
+                  groups[key].push(item);
+                });
+
+                return Object.entries(groups).map(([groupName, items]) => (
+                  <div key={groupName} className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="h-px flex-1 bg-supabase-border" />
+                      <div className="flex items-center gap-2 px-4 py-1 bg-supabase-panel border border-supabase-border rounded-full">
+                        {groupBy === 'year' ? <Calendar size={12} className="text-supabase-green" /> : 
+                         groupBy === 'term' ? <Layers size={12} className="text-supabase-green" /> :
+                         <BookOpen size={12} className="text-supabase-green" />}
+                        <span className="text-[10px] font-black uppercase tracking-widest text-supabase-text">{groupName}</span>
+                        <span className="text-[9px] font-bold text-supabase-muted bg-supabase-bg px-2 rounded-full">{items.length}</span>
+                      </div>
+                      <div className="h-px flex-1 bg-supabase-border" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {items.map(fee => (
+                        <FeeCard key={fee.id} fee={fee} onDelete={handleDeleteFee} />
+                      ))}
+                    </div>
                   </div>
-                  <h4 className="text-sm font-black text-supabase-text uppercase tracking-tight mb-1">{fee.name}</h4>
-                  <div className="flex items-baseline gap-1 mb-3">
-                    <span className="text-xl font-black text-supabase-green">${fee.amount.toLocaleString()}</span>
-                    <span className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">/ {fee.frequency}</span>
-                  </div>
-                  {fee.description && (
-                    <p className="text-[11px] text-supabase-muted italic leading-relaxed line-clamp-2">
-                      {fee.description}
-                    </p>
-                  )}
-                </div>
-              ))}
+                ));
+              })()}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 bg-supabase-panel border border-supabase-border border-dashed rounded-2xl text-supabase-muted">
@@ -221,5 +406,54 @@ const FeeStructureView: React.FC = () => {
     </div>
   );
 };
+
+const FeeCard: React.FC<{ fee: FeeItem; onDelete: (id: string) => void }> = ({ fee, onDelete }) => (
+  <div className="bg-supabase-panel border border-supabase-border rounded-2xl p-5 group hover:border-supabase-green/50 transition-all relative overflow-hidden">
+    <div className="flex justify-between items-start mb-4">
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-supabase-green/10 text-supabase-green rounded-lg">
+          <DollarSign size={20} />
+        </div>
+        {(fee.academic_year || fee.term || fee.class_name) && (
+          <div className="flex flex-col gap-1">
+            {fee.academic_year && (
+              <span className="text-[8px] font-black text-supabase-green bg-supabase-green/5 px-2 py-0.5 rounded uppercase tracking-widest">
+                {fee.academic_year}
+              </span>
+            )}
+            <div className="flex gap-1">
+              {fee.term && (
+                <span className="text-[8px] font-black text-supabase-muted bg-supabase-bg px-2 py-0.5 rounded uppercase tracking-widest">
+                  {fee.term}
+                </span>
+              )}
+              {fee.class_name && (
+                <span className="text-[8px] font-black text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded uppercase tracking-widest">
+                  {fee.class_name}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      <button 
+        onClick={() => onDelete(fee.id)}
+        className="text-supabase-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+    <h4 className="text-sm font-black text-supabase-text uppercase tracking-tight mb-1">{fee.name}</h4>
+    <div className="flex items-baseline gap-1 mb-3">
+      <span className="text-xl font-black text-supabase-green">${fee.amount.toLocaleString()}</span>
+      <span className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">/ {fee.frequency}</span>
+    </div>
+    {fee.description && (
+      <p className="text-[11px] text-supabase-muted italic leading-relaxed line-clamp-2">
+        {fee.description}
+      </p>
+    )}
+  </div>
+);
 
 export default FeeStructureView;

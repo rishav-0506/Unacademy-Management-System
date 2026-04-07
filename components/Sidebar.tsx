@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { View, NavItem } from '../types';
-import { useAuth, PermissionKey } from '../context/AuthContext';
+import { View, NavItem, PermissionKey } from '../types';
+import { useAuth } from '../context/AuthContext';
 import { 
   LayoutDashboard, 
   Table, 

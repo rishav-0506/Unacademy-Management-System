@@ -30,7 +30,8 @@ export const academicService = {
       .maybeSingle();
     
     if (error) throw error;
-    return (data?.value as PreferredCourse[]) || [];
+    const value = data?.value;
+    return Array.isArray(value) ? (value as PreferredCourse[]) : [];
   },
 
   async addCourse(course: Omit<PreferredCourse, 'id' | 'created_at'>) {
@@ -115,6 +116,68 @@ export const academicService = {
         value: updatedOffers,
         updated_at: new Date().toISOString()
       }, { onConflict: 'key' });
+    
+    if (error) throw error;
+  },
+
+  // Academic Years
+  async getAcademicYears() {
+    const { data, error } = await supabase
+      .from('academic_years')
+      .select('*')
+      .order('name', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async addAcademicYear(name: string) {
+    const { data, error } = await supabase
+      .from('academic_years')
+      .insert([{ name }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteAcademicYear(id: string) {
+    const { error } = await supabase
+      .from('academic_years')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+  },
+
+  // Terms
+  async getTerms() {
+    const { data, error } = await supabase
+      .from('terms')
+      .select('*')
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  },
+
+  async addTerm(name: string) {
+    const { data, error } = await supabase
+      .from('terms')
+      .insert([{ name }])
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  },
+
+  async deleteTerm(id: string) {
+    const { error } = await supabase
+      .from('terms')
+      .delete()
+      .eq('id', id);
     
     if (error) throw error;
   }

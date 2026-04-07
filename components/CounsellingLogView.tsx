@@ -5,18 +5,19 @@ import { Search, Trash2, Calendar, User, Phone, BookOpen, Download, Loader2, Fil
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { counsellingService } from '../services/counsellingService';
+import { scheduleService } from '../services/scheduleService';
 import { academicService, PreferredCourse } from '../services/academicService';
-import { CounsellingRecord } from '../types';
+import { RowStudent } from '../types';
 import ConfirmModal from './ConfirmModal';
 
 const CounsellingLogView: React.FC = () => {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const [records, setRecords] = useState<CounsellingRecord[]>([]);
+  const [records, setRecords] = useState<RowStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [createdByFilter, setCreatedByFilter] = useState('all');
-  const [selectedRecord, setSelectedRecord] = useState<CounsellingRecord | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<RowStudent | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -24,7 +25,29 @@ const CounsellingLogView: React.FC = () => {
   const [courses, setCourses] = useState<PreferredCourse[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
 
-  const [editFormData, setEditFormData] = useState<Partial<CounsellingRecord>>({});
+  const [editFormData, setEditFormData] = useState<Partial<RowStudent>>({});
+
+  const getStatusLabel = (status: string | undefined) => {
+    switch (status?.toString().toLowerCase()) {
+      case '30': return 'Registration Pending';
+      case '31': return 'Registration Approved';
+      case '32': return 'Registration Reject';
+      case '33': return 'Registration Special Approval';
+      case '40': return 'Admission Pending';
+      case '41': return 'Admission Approved';
+      case '42': return 'Admission Reject';
+      case '43': return 'Admission Special Approval';
+      case '5': case 'admitted': return 'Admitted';
+      default: return 'Pending';
+    }
+  };
+
+  const getStatusColor = (status: string | undefined) => {
+    const s = status?.toString().toLowerCase();
+    if (['31', '33', '41', '43', '5', 'admitted'].includes(s || '')) return 'bg-supabase-green/10 text-supabase-green';
+    if (['32', '42', 'reject', 'rejected'].includes(s || '')) return 'bg-red-500/10 text-red-500';
+    return 'bg-yellow-500/10 text-yellow-500';
+  };
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -63,39 +86,44 @@ const CounsellingLogView: React.FC = () => {
       setRecords(prev => prev.filter(r => r.id !== recordToDelete));
       setIsDeleteModalOpen(false);
       setRecordToDelete(null);
+      setSelectedRecord(null); // Close details modal if open
     } catch (error: any) {
       showToast(error.message || 'Failed to delete record', 'error');
     }
   };
 
-  const handleStatusUpdate = async (id: string, status: 'approved' | 'rejected') => {
+  const handleStatusUpdate = async (id: string, status: '1' | '2' | 'approved' | 'rejected') => {
     setIsUpdating(id);
     try {
       const record = records.find(r => r.id === id);
       const updater = user?.name || 'System';
       const newActivity = {
-        action: status,
+        action: (status === '1' || status === 'approved' ? 'approved' : 'rejected') as 'approved' | 'rejected',
         user: updater,
         timestamp: new Date().toISOString()
       };
 
-      const updates: Partial<CounsellingRecord> = { 
-        status,
+      const updates: Partial<RowStudent> = { 
+        status: status === '1' || status === 'approved' ? '1' : '2',
         activity_log: [...(record?.activity_log || []), newActivity]
       };
       
-      if (status === 'approved') {
+      if (status === '1' || status === 'approved') {
         updates.approved_by = updater;
       } else {
         updates.rejected_by = updater;
       }
       
       const updated = await counsellingService.updateRecord(id, updates);
-      setRecords(prev => prev.map(r => r.id === id ? updated : r));
-      if (selectedRecord?.id === id) {
-        setSelectedRecord(updated);
+      
+      if (status === '1' || status === 'approved') {
+        showToast('Record approved and available in registrations', 'success');
+      } else {
+        showToast(`Record ${status} successfully`, 'success');
       }
-      showToast(`Record ${status} successfully`, 'success');
+      
+      setRecords(prev => prev.map(r => r.id === id ? updated : r));
+      setSelectedRecord(null); // Close details modal after action
     } catch (error: any) {
       showToast(error.message || 'Failed to update record', 'error');
     } finally {
@@ -103,7 +131,7 @@ const CounsellingLogView: React.FC = () => {
     }
   };
 
-  const handleEditClick = (record: CounsellingRecord) => {
+  const handleEditClick = (record: RowStudent) => {
     setEditFormData({ ...record });
     setIsEditing(true);
     setSelectedRecord(null);
@@ -169,18 +197,17 @@ const CounsellingLogView: React.FC = () => {
   const uniqueCreators = Array.from(new Set(records.map(r => r.created_by || 'System'))).sort();
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Student Name', 'Contact', 'Gender', 'Current Class', 'Parents Name', 'Course Interest', 'Preferred Batch'];
+    const headers = ['Date', 'Student Name', 'Token No', 'Contact', 'Gender', 'Parents Name', 'Course Interest'];
     const csvContent = [
       headers.join(','),
       ...filteredRecords.map(r => [
         r.date,
         `"${r.student_name}"`,
+        r.token_no || '',
         r.contact_no,
         r.gender,
-        r.current_class,
         `"${r.parents_name}"`,
-        `"${r.course_interest.preferred_course}"`,
-        r.course_interest.preferred_batch_timing
+        `"${r.course_interest.preferred_course}"`
       ].join(','))
     ].join('\n');
 
@@ -246,10 +273,10 @@ const CounsellingLogView: React.FC = () => {
             <thead>
               <tr className="bg-supabase-sidebar border-b border-supabase-border">
                 <th className="px-6 py-4 text-[10px] font-black text-supabase-muted uppercase tracking-widest">Date</th>
-                <th className="px-6 py-4 text-[10px] font-black text-supabase-muted uppercase tracking-widest">Student Info</th>
+                <th className="px-6 py-4 text-[10px] font-black text-supabase-muted uppercase tracking-widest">Student & Token</th>
                 <th className="px-6 py-4 text-[10px] font-black text-supabase-muted uppercase tracking-widest">Course Interest</th>
                 <th className="px-6 py-4 text-[10px] font-black text-supabase-muted uppercase tracking-widest">Contact</th>
-                <th className="px-6 py-4 text-[10px] font-black text-supabase-muted uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-[10px] font-black text-supabase-muted uppercase tracking-widest">Status & Last Action</th>
                 <th className="px-6 py-4 text-[10px] font-black text-supabase-muted uppercase tracking-widest">Created By</th>
                 <th className="px-6 py-4 text-[10px] font-black text-supabase-muted uppercase tracking-widest text-right">Actions</th>
               </tr>
@@ -257,7 +284,7 @@ const CounsellingLogView: React.FC = () => {
             <tbody className="divide-y divide-supabase-border/50">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-20 text-center">
+                  <td colSpan={7} className="px-6 py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="animate-spin text-supabase-green" size={32} />
                       <span className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Loading Records...</span>
@@ -266,7 +293,7 @@ const CounsellingLogView: React.FC = () => {
                 </tr>
               ) : filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-20 text-center text-supabase-muted">
+                  <td colSpan={7} className="px-6 py-20 text-center text-supabase-muted">
                     <p className="text-sm italic">No counselling records found.</p>
                   </td>
                 </tr>
@@ -282,13 +309,12 @@ const CounsellingLogView: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="text-sm font-black text-supabase-text uppercase tracking-tight">{record.student_name}</span>
-                        <span className="text-[10px] text-supabase-muted uppercase tracking-widest">{record.current_class}</span>
+                        <span className="text-[10px] text-supabase-green uppercase tracking-widest font-bold">{record.token_no || 'N/A'}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col">
                         <span className="text-sm font-bold text-blue-400">{record.course_interest.preferred_course}</span>
-                        <span className="text-[10px] text-supabase-muted uppercase tracking-widest">{record.course_interest.preferred_batch_timing}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -304,12 +330,15 @@ const CounsellingLogView: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        record.status === 'approved' ? 'bg-supabase-green/10 text-supabase-green' :
-                        record.status === 'rejected' ? 'bg-red-500/10 text-red-500' :
-                        'bg-supabase-muted/10 text-supabase-muted'
-                      }`}>
-                        {record.status || 'pending'}
+                      <div className="flex flex-col gap-1">
+                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest w-fit ${getStatusColor(record.status)}`}>
+                          {getStatusLabel(record.status)}
+                        </div>
+                        {record.activity_log && record.activity_log.length > 0 && (
+                          <span className="text-[9px] text-supabase-muted">
+                            by {record.activity_log[record.activity_log.length - 1].user}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -490,31 +519,7 @@ const CounsellingLogView: React.FC = () => {
 
                   <h4 className="text-[10px] font-black text-purple-400 uppercase tracking-[0.2em] border-b border-purple-400/20 pb-2 pt-4">Academic Interest</h4>
                   <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="text-[9px] text-supabase-muted uppercase font-bold mb-1 block">Preferred Course</label>
-                      <select 
-                        name="course_interest.preferred_course"
-                        value={editFormData.course_interest?.preferred_course || ''}
-                        onChange={handleEditChange}
-                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-4 py-2 text-sm text-supabase-text focus:border-supabase-green outline-none"
-                      >
-                        <option value="">Select Course</option>
-                        {courses.map(course => (
-                          <option key={course.id} value={course.name}>{course.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-[9px] text-supabase-muted uppercase font-bold mb-1 block">Batch Timing</label>
-                        <input 
-                          type="text" 
-                          name="course_interest.preferred_batch_timing"
-                          value={editFormData.course_interest?.preferred_batch_timing || ''}
-                          onChange={handleEditChange}
-                          className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-4 py-2 text-sm text-supabase-text focus:border-supabase-green outline-none"
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 gap-4">
                       <div>
                         <label className="text-[9px] text-supabase-muted uppercase font-bold mb-1 block">Last Score</label>
                         <input 
@@ -524,6 +529,30 @@ const CounsellingLogView: React.FC = () => {
                           onChange={handleEditChange}
                           className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-4 py-2 text-sm text-supabase-text focus:border-supabase-green outline-none"
                         />
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-supabase-muted uppercase font-bold mb-1 block">Previous Coaching (if any)</label>
+                        <input 
+                          type="text" 
+                          name="course_interest.previous_coaching"
+                          value={editFormData.course_interest?.previous_coaching || ''}
+                          onChange={handleEditChange}
+                          className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-4 py-2 text-sm text-supabase-text focus:border-supabase-green outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] text-supabase-muted uppercase font-bold mb-1 block">Preferred Course</label>
+                        <select 
+                          name="course_interest.preferred_course"
+                          value={editFormData.course_interest?.preferred_course || ''}
+                          onChange={handleEditChange}
+                          className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-4 py-2 text-sm text-supabase-text focus:border-supabase-green outline-none"
+                        >
+                          <option value="">Select Course</option>
+                          {courses.map(course => (
+                            <option key={course.id} value={course.name}>{course.name}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   </div>
@@ -567,7 +596,15 @@ const CounsellingLogView: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-supabase-text uppercase tracking-tight">{selectedRecord.student_name}</h3>
-                  <p className="text-supabase-muted text-xs uppercase tracking-widest">Counselling Details • {selectedRecord.date}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-supabase-muted text-xs uppercase tracking-widest">Counselling Details • {selectedRecord.date}</p>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${getStatusColor(selectedRecord.status)}`}>
+                      {getStatusLabel(selectedRecord.status)}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-supabase-green/10 text-supabase-green">
+                      TOKEN: {selectedRecord.token_no || 'N/A'}
+                    </span>
+                  </div>
                 </div>
               </div>
               <button 
@@ -650,8 +687,8 @@ const CounsellingLogView: React.FC = () => {
                     <p className="text-sm text-supabase-text">{selectedRecord.course_interest.school_name}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-supabase-muted uppercase font-bold">Batch Timing</p>
-                    <p className="text-sm text-supabase-text">{selectedRecord.course_interest.preferred_batch_timing}</p>
+                    <p className="text-[9px] text-supabase-muted uppercase font-bold">Previous Coaching</p>
+                    <p className="text-sm text-supabase-text">{selectedRecord.course_interest.previous_coaching || 'None'}</p>
                   </div>
                 </div>
 
@@ -661,10 +698,6 @@ const CounsellingLogView: React.FC = () => {
                   <div>
                     <p className="text-[9px] text-supabase-muted uppercase font-bold">Heard About Us Via</p>
                     <p className="text-sm text-supabase-text">{selectedRecord.additional_information.heard_about}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] text-supabase-muted uppercase font-bold">Previous Coaching</p>
-                    <p className="text-sm text-supabase-text">{selectedRecord.additional_information.previous_coaching || 'None'}</p>
                   </div>
                   <div>
                     <p className="text-[9px] text-supabase-muted uppercase font-bold">Concerns/Queries</p>
@@ -723,6 +756,19 @@ const CounsellingLogView: React.FC = () => {
                       )}
                     </div>
                   </div>
+                  {selectedRecord.activity_log && selectedRecord.activity_log.length > 0 && (
+                    <div className="p-4 bg-supabase-sidebar rounded-xl border border-supabase-border">
+                      <p className="text-[9px] text-supabase-muted uppercase font-bold">Last Action</p>
+                      <p className="text-sm font-bold text-supabase-text">
+                        {selectedRecord.activity_log[selectedRecord.activity_log.length - 1].action.toUpperCase()} 
+                        <span className="text-supabase-muted font-normal"> by </span>
+                        {selectedRecord.activity_log[selectedRecord.activity_log.length - 1].user}
+                        <span className="ml-2 text-[10px] font-normal text-supabase-muted">
+                          ({new Date(selectedRecord.activity_log[selectedRecord.activity_log.length - 1].timestamp).toLocaleString()})
+                        </span>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -731,29 +777,31 @@ const CounsellingLogView: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button 
                   onClick={() => handleEditClick(selectedRecord)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-blue-400 hover:bg-blue-400/10 transition-all border border-blue-400/20"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-blue-400 hover:bg-blue-400/10 transition-all border border-blue-400/20 ${
+                    (selectedRecord.status === '1' || selectedRecord.status === 'approved')
+                      ? 'hidden'
+                      : ''
+                  }`}
                 >
                   <Edit2 size={14} /> Edit
                 </button>
                 <div className="h-6 w-[1px] bg-supabase-border mx-2" />
                 <button 
-                  onClick={() => handleStatusUpdate(selectedRecord.id, 'approved')}
-                  disabled={isUpdating === selectedRecord.id || selectedRecord.status === 'approved'}
+                  onClick={() => handleStatusUpdate(selectedRecord.id, '1')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
-                    selectedRecord.status === 'approved' 
-                      ? 'text-supabase-green bg-supabase-green/10 border-supabase-green/20 opacity-50 cursor-not-allowed' 
-                      : 'text-supabase-muted hover:text-supabase-green hover:bg-supabase-green/10 border-supabase-border'
+                    (selectedRecord.status === '0' || selectedRecord.status === 'pending')
+                      ? 'text-supabase-muted hover:text-supabase-green hover:bg-supabase-green/10 border-supabase-border'
+                      : 'hidden'
                   }`}
                 >
                   <CheckCircle2 size={14} /> Approve
                 </button>
                 <button 
-                  onClick={() => handleStatusUpdate(selectedRecord.id, 'rejected')}
-                  disabled={isUpdating === selectedRecord.id || selectedRecord.status === 'rejected'}
+                  onClick={() => handleStatusUpdate(selectedRecord.id, '2')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
-                    selectedRecord.status === 'rejected' 
-                      ? 'text-red-500 bg-red-500/10 border-red-500/20 opacity-50 cursor-not-allowed' 
-                      : 'text-supabase-muted hover:text-red-500 hover:bg-red-500/10 border-supabase-border'
+                    (selectedRecord.status === '0' || selectedRecord.status === 'pending')
+                      ? 'text-supabase-muted hover:text-red-500 hover:bg-red-500/10 border-supabase-border'
+                      : 'hidden'
                   }`}
                 >
                   <XCircle size={14} /> Reject
@@ -764,7 +812,11 @@ const CounsellingLogView: React.FC = () => {
                     setRecordToDelete(selectedRecord.id);
                     setIsDeleteModalOpen(true);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-all border border-red-500/20"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-all border border-red-500/20 ${
+                    (selectedRecord.status === '0' || selectedRecord.status === 'pending' || selectedRecord.status === '2' || selectedRecord.status === 'reject' || selectedRecord.status === 'rejected')
+                      ? ''
+                      : 'hidden'
+                  }`}
                 >
                   <Trash2 size={14} /> Delete
                 </button>

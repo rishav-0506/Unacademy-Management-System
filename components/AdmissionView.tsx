@@ -32,10 +32,28 @@ interface Registration {
     phone: string;
     email: string;
     class_id: string;
-    status: 'pending' | 'approved' | 'rejected' | 'admitted';
+    status: string; // '0' | '1' | '2' | '3' | '4' | '5'
     registration_fee_status: 'paid' | 'unpaid';
     created_at: string;
 }
+
+const getStatusLabel = (status: string | undefined) => {
+    switch (status?.toString().toLowerCase()) {
+      case '40': return 'Pending';
+      case '41': return 'Approved';
+      case '42': return 'Reject';
+      case '43': return 'Special Approval';
+      case '5': case 'admitted': return 'Admitted';
+      default: return 'Pending';
+    }
+};
+
+const getStatusColor = (status: string | undefined) => {
+    const s = status?.toString().toLowerCase();
+    if (['41', '43', '5', 'admitted'].includes(s || '')) return 'bg-supabase-green/10 text-supabase-green';
+    if (['42', 'reject', 'rejected'].includes(s || '')) return 'bg-red-500/10 text-red-500';
+    return 'bg-yellow-500/10 text-yellow-500';
+};
 
 const AdmissionView: React.FC = () => {
     const { showToast } = useToast();
@@ -52,6 +70,7 @@ const AdmissionView: React.FC = () => {
 
     // Admission Modal state
     const [isAdmissionModalOpen, setIsAdmissionModalOpen] = useState(false);
+    const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedRegistration, setSelectedRegistration] = useState<Registration | null>(null);
     
@@ -97,7 +116,7 @@ const AdmissionView: React.FC = () => {
             
             if (error) throw error;
             const allRegs = (data?.value || []) as Registration[];
-            setApprovedRegistrations(allRegs.filter(r => r.status === 'approved'));
+            setApprovedRegistrations(allRegs.filter(r => r.status === '4' || r.status === 'admission' || r.status === 'approved'));
         } catch (error: any) {
             showToast("Failed to fetch approved registrations: " + error.message, "error");
         }
@@ -116,6 +135,7 @@ const AdmissionView: React.FC = () => {
 
     const handleStartAdmission = (reg: Registration) => {
         setSelectedRegistration(reg);
+        setCurrentStep(1);
         
         // Find class name from class_id
         const targetClass = classes.find(c => c.id === reg.class_id);
@@ -151,6 +171,7 @@ const AdmissionView: React.FC = () => {
 
     const handleDirectAdmission = () => {
         setSelectedRegistration(null);
+        setCurrentStep(1);
         setAdmissionData({
             full_name: '',
             roll_number: '',
@@ -224,7 +245,7 @@ const AdmissionView: React.FC = () => {
                 
                 const allRegs = (configData?.value || []) as Registration[];
                 const updatedRegs = allRegs.map(reg => 
-                    reg.id === selectedRegistration.id ? { ...reg, status: 'admitted' as const } : reg
+                    reg.id === selectedRegistration.id ? { ...reg, status: '5' } : reg
                 );
 
                 const { error: regError } = await supabase.from('system_config').upsert({
@@ -297,8 +318,8 @@ const AdmissionView: React.FC = () => {
                                             <div className="w-12 h-12 bg-supabase-green/10 rounded-xl flex items-center justify-center text-supabase-green">
                                                 <User size={24} />
                                             </div>
-                                            <div className="px-2 py-1 bg-supabase-green/10 text-supabase-green text-[10px] font-bold uppercase tracking-widest rounded">
-                                                Approved
+                                            <div className={`px-2 py-1 text-[10px] font-bold uppercase tracking-widest rounded ${getStatusColor(reg.status)}`}>
+                                                {getStatusLabel(reg.status)}
                                             </div>
                                         </div>
                                         <h3 className="text-lg font-bold text-supabase-text mb-1">{reg.student_name}</h3>
@@ -386,290 +407,389 @@ const AdmissionView: React.FC = () => {
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-supabase-panel border border-supabase-border rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 border-b border-supabase-border flex items-center justify-between bg-supabase-sidebar/50">
-                            <h2 className="text-lg font-black text-supabase-text uppercase tracking-widest flex items-center gap-2">
-                                <UserPlus className="text-supabase-green" size={20} />
-                                {selectedRegistration ? 'Complete Admission' : 'Direct Admission'}
-                            </h2>
+                            <div className="flex flex-col">
+                                <h2 className="text-lg font-black text-supabase-text uppercase tracking-widest flex items-center gap-2">
+                                    <UserPlus className="text-supabase-green" size={20} />
+                                    {selectedRegistration ? 'Complete Admission' : 'Direct Admission'}
+                                </h2>
+                                <div className="flex items-center gap-2 mt-1">
+                                    {[1, 2, 3].map((step) => (
+                                        <div 
+                                            key={step}
+                                            className={`h-1 w-8 rounded-full transition-all ${
+                                                currentStep >= step ? 'bg-supabase-green' : 'bg-supabase-border'
+                                            }`}
+                                        />
+                                    ))}
+                                    <span className="text-[10px] font-black text-supabase-muted uppercase tracking-widest ml-2">
+                                        Step {currentStep} of 3
+                                    </span>
+                                </div>
+                            </div>
                             <button onClick={() => setIsAdmissionModalOpen(false)} className="text-supabase-muted hover:text-supabase-text transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
                         <form onSubmit={handleSubmitAdmission} className="p-6 max-h-[85vh] overflow-y-auto">
                             <div className="space-y-6 mb-6">
-                                {/* Student Details Section */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 pb-2 border-b border-supabase-border">
-                                        <div className="w-1 h-4 bg-supabase-green rounded-full"></div>
-                                        <h3 className="text-[11px] font-bold text-supabase-text uppercase tracking-widest">Student Information</h3>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="md:col-span-2 space-y-2">
-                                            <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Full Name</label>
-                                            <div className="relative">
-                                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={16} />
-                                                <input 
-                                                    required
-                                                    type="text"
-                                                    value={admissionData.full_name}
-                                                    onChange={(e) => setAdmissionData({...admissionData, full_name: e.target.value})}
-                                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-10 pr-4 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
-                                                    placeholder="Student's Full Name"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Roll Number</label>
-                                            <div className="relative">
-                                                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={16} />
-                                                <input 
-                                                    required
-                                                    type="text"
-                                                    value={admissionData.roll_number}
-                                                    onChange={(e) => setAdmissionData({...admissionData, roll_number: e.target.value})}
-                                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-10 pr-4 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
-                                                    placeholder="e.g. 2024-001"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Date of Birth</label>
-                                            <div className="relative">
-                                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={16} />
-                                                <input 
-                                                    required
-                                                    type="date"
-                                                    value={admissionData.date_of_birth}
-                                                    onChange={(e) => setAdmissionData({...admissionData, date_of_birth: e.target.value})}
-                                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-10 pr-4 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Class Assignment</label>
-                                            <select 
-                                                required
-                                                value={admissionData.class_name}
-                                                onChange={(e) => setAdmissionData({...admissionData, class_name: e.target.value})}
-                                                className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-4 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
-                                            >
-                                                {classes.map(c => (
-                                                    <option key={c.id} value={c.name}>{c.name} - {c.section}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Gender</label>
-                                            <div className="flex gap-4 h-9 items-center">
-                                                {['Male', 'Female', 'Other'].map(g => (
-                                                    <label key={g} className="flex items-center gap-2 cursor-pointer">
-                                                        <input 
-                                                            type="radio"
-                                                            name="gender"
-                                                            value={g}
-                                                            checked={admissionData.gender === g}
-                                                            onChange={(e) => setAdmissionData({...admissionData, gender: e.target.value})}
-                                                            className="accent-supabase-green"
-                                                        />
-                                                        <span className="text-xs text-supabase-text">{g}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Guardian Details Section */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 pb-2 border-b border-supabase-border">
-                                        <div className="w-1 h-4 bg-supabase-green rounded-full"></div>
-                                        <h3 className="text-[11px] font-bold text-supabase-text uppercase tracking-widest">Guardian Information</h3>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="md:col-span-2 space-y-2 relative">
-                                            <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">
-                                                Guardian Name
-                                            </label>
-                                            <div className="relative">
-                                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={16} />
-                                                <input 
-                                                    required
-                                                    type="text"
-                                                    value={admissionData.guardian_name}
-                                                    onChange={(e) => {
-                                                        setAdmissionData({...admissionData, guardian_name: e.target.value});
-                                                        setSearchTermParent(e.target.value);
-                                                    }}
-                                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-10 pr-10 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
-                                                    placeholder="Search or Enter Guardian Name"
-                                                />
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setShowAddParentForm(!showAddParentForm);
-                                                        if (!showAddParentForm) {
-                                                            setNewParent({ ...newParent, full_name: admissionData.guardian_name });
-                                                        }
-                                                    }}
-                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-supabase-green hover:text-supabase-green/80 transition-colors p-1 rounded-md hover:bg-supabase-green/10"
-                                                    title="Add New Parent"
-                                                >
-                                                    <Plus size={18} />
-                                                </button>
-                                                
-                                                {searchTermParent && !showAddParentForm && !admissionData.parent_id && (
-                                                    <div className="absolute z-20 left-0 right-0 mt-1 bg-supabase-sidebar border border-supabase-border rounded-xl shadow-2xl max-h-48 overflow-y-auto">
-                                                        {parents
-                                                            .filter(p => 
-                                                                p.full_name.toLowerCase().includes(searchTermParent.toLowerCase()) || 
-                                                                p.phone.includes(searchTermParent)
-                                                            )
-                                                            .map(parent => (
-                                                                <button
-                                                                    key={parent.id}
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        setAdmissionData({ 
-                                                                            ...admissionData, 
-                                                                            parent_id: parent.id, 
-                                                                            guardian_name: parent.full_name, 
-                                                                            contact_number: parent.phone,
-                                                                            address: parent.address || admissionData.address
-                                                                        });
-                                                                        setSearchTermParent('');
-                                                                        setShowAddParentForm(false);
-                                                                    }}
-                                                                    className="w-full px-4 py-2 text-left text-sm hover:bg-supabase-hover flex items-center justify-between group"
-                                                                >
-                                                                    <div>
-                                                                        <div className="font-bold text-supabase-text">{parent.full_name}</div>
-                                                                        <div className="text-[10px] text-supabase-muted">{parent.phone}</div>
-                                                                    </div>
-                                                                    {admissionData.parent_id === parent.id && <CheckCircle2 size={14} className="text-supabase-green" />}
-                                                                </button>
-                                                            ))
-                                                        }
-                                                    </div>
-                                                )}
+                                {currentStep === 1 && (
+                                    <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                                        {/* Student Details Section */}
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 pb-2 border-b border-supabase-border">
+                                                <div className="w-1 h-4 bg-supabase-green rounded-full"></div>
+                                                <h3 className="text-[11px] font-bold text-supabase-text uppercase tracking-widest">Student Information</h3>
                                             </div>
                                             
-                                            {admissionData.parent_id && !showAddParentForm && (
-                                                <div className="flex items-center gap-2 mt-1 px-2 py-1 bg-supabase-green/10 border border-supabase-green/20 rounded-md">
-                                                    <CheckCircle2 size={12} className="text-supabase-green" />
-                                                    <span className="text-[10px] text-supabase-green font-medium">Linked to existing record</span>
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => setAdmissionData({...admissionData, parent_id: ''})}
-                                                        className="ml-auto text-[10px] text-supabase-muted hover:text-supabase-red"
-                                                    >
-                                                        Unlink
-                                                    </button>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="md:col-span-2 space-y-2">
+                                                    <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Full Name</label>
+                                                    <div className="relative">
+                                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={16} />
+                                                        <input 
+                                                            required
+                                                            type="text"
+                                                            value={admissionData.full_name}
+                                                            onChange={(e) => setAdmissionData({...admissionData, full_name: e.target.value})}
+                                                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-10 pr-4 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
+                                                            placeholder="Student's Full Name"
+                                                        />
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
 
-                                        {showAddParentForm && (
-                                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-supabase-bg/50 border border-supabase-border rounded-xl animate-in fade-in slide-in-from-top-2">
-                                                <div className="md:col-span-2 flex items-center justify-between mb-1">
-                                                    <span className="text-[10px] font-bold text-supabase-text uppercase tracking-widest">New Parent Details</span>
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => setShowAddParentForm(false)}
-                                                        className="text-[10px] text-supabase-muted hover:text-supabase-red"
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] text-supabase-muted uppercase font-bold">Full Name</label>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Roll Number</label>
                                                     <div className="relative">
-                                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={14} />
+                                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={16} />
                                                         <input 
+                                                            required
                                                             type="text"
-                                                            value={newParent.full_name}
-                                                            onChange={(e) => setNewParent({...newParent, full_name: e.target.value})}
-                                                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green"
+                                                            value={admissionData.roll_number}
+                                                            onChange={(e) => setAdmissionData({...admissionData, roll_number: e.target.value})}
+                                                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-10 pr-4 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
+                                                            placeholder="e.g. 2024-001"
                                                         />
                                                     </div>
                                                 </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] text-supabase-muted uppercase font-bold">Phone</label>
-                                                    <div className="relative">
-                                                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={14} />
-                                                        <input 
-                                                            type="text"
-                                                            value={newParent.phone}
-                                                            onChange={(e) => setNewParent({...newParent, phone: e.target.value})}
-                                                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] text-supabase-muted uppercase font-bold">Email</label>
-                                                    <div className="relative">
-                                                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={14} />
-                                                        <input 
-                                                            type="email"
-                                                            value={newParent.email}
-                                                            onChange={(e) => setNewParent({...newParent, email: e.target.value})}
-                                                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] text-supabase-muted uppercase font-bold">Occupation</label>
-                                                    <div className="relative">
-                                                        <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={14} />
-                                                        <input 
-                                                            type="text"
-                                                            value={newParent.occupation}
-                                                            onChange={(e) => setNewParent({...newParent, occupation: e.target.value})}
-                                                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
 
-                                        <div className="md:col-span-2 space-y-2">
-                                            <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Address</label>
-                                            <div className="relative">
-                                                <MapPin className="absolute left-3 top-3 text-supabase-muted" size={16} />
-                                                <textarea 
-                                                    required
-                                                    rows={2}
-                                                    value={admissionData.address}
-                                                    onChange={(e) => setAdmissionData({...admissionData, address: e.target.value})}
-                                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-10 pr-4 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all resize-none"
-                                                    placeholder="Full Residential Address"
-                                                />
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Date of Birth</label>
+                                                    <div className="relative">
+                                                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={16} />
+                                                        <input 
+                                                            required
+                                                            type="date"
+                                                            value={admissionData.date_of_birth}
+                                                            onChange={(e) => setAdmissionData({...admissionData, date_of_birth: e.target.value})}
+                                                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-10 pr-4 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Class Assignment</label>
+                                                    <select 
+                                                        required
+                                                        value={admissionData.class_name}
+                                                        onChange={(e) => setAdmissionData({...admissionData, class_name: e.target.value})}
+                                                        className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-4 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
+                                                    >
+                                                        {classes.map(c => (
+                                                            <option key={c.id} value={c.name}>{c.name} - {c.section}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Gender</label>
+                                                    <div className="flex gap-4 h-9 items-center">
+                                                        {['Male', 'Female', 'Other'].map(g => (
+                                                            <label key={g} className="flex items-center gap-2 cursor-pointer">
+                                                                <input 
+                                                                    type="radio"
+                                                                    name="gender"
+                                                                    value={g}
+                                                                    checked={admissionData.gender === g}
+                                                                    onChange={(e) => setAdmissionData({...admissionData, gender: e.target.value})}
+                                                                    className="accent-supabase-green"
+                                                                />
+                                                                <span className="text-xs text-supabase-text">{g}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
+
+                                {currentStep === 2 && (
+                                    <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                                        {/* Guardian Details Section */}
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 pb-2 border-b border-supabase-border">
+                                                <div className="w-1 h-4 bg-supabase-green rounded-full"></div>
+                                                <h3 className="text-[11px] font-bold text-supabase-text uppercase tracking-widest">Guardian Information</h3>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="md:col-span-2 space-y-2 relative">
+                                                    <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">
+                                                        Guardian Name
+                                                    </label>
+                                                    <div className="relative">
+                                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={16} />
+                                                        <input 
+                                                            required
+                                                            type="text"
+                                                            value={admissionData.guardian_name}
+                                                            onChange={(e) => {
+                                                                setAdmissionData({...admissionData, guardian_name: e.target.value});
+                                                                setSearchTermParent(e.target.value);
+                                                            }}
+                                                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-10 pr-10 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all"
+                                                            placeholder="Search or Enter Guardian Name"
+                                                        />
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setShowAddParentForm(!showAddParentForm);
+                                                                if (!showAddParentForm) {
+                                                                    setNewParent({ ...newParent, full_name: admissionData.guardian_name });
+                                                                }
+                                                            }}
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-supabase-green hover:text-supabase-green/80 transition-colors p-1 rounded-md hover:bg-supabase-green/10"
+                                                            title="Add New Parent"
+                                                        >
+                                                            <Plus size={18} />
+                                                        </button>
+                                                        
+                                                        {searchTermParent && !showAddParentForm && !admissionData.parent_id && (
+                                                            <div className="absolute z-20 left-0 right-0 mt-1 bg-supabase-sidebar border border-supabase-border rounded-xl shadow-2xl max-h-48 overflow-y-auto">
+                                                                {parents
+                                                                    .filter(p => 
+                                                                        p.full_name.toLowerCase().includes(searchTermParent.toLowerCase()) || 
+                                                                        p.phone.includes(searchTermParent)
+                                                                    )
+                                                                    .map(parent => (
+                                                                        <button
+                                                                            key={parent.id}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setAdmissionData({ 
+                                                                                    ...admissionData, 
+                                                                                    parent_id: parent.id, 
+                                                                                    guardian_name: parent.full_name, 
+                                                                                    contact_number: parent.phone,
+                                                                                    address: parent.address || admissionData.address
+                                                                                });
+                                                                                setSearchTermParent('');
+                                                                                setShowAddParentForm(false);
+                                                                            }}
+                                                                            className="w-full px-4 py-2 text-left text-sm hover:bg-supabase-hover flex items-center justify-between group"
+                                                                        >
+                                                                            <div>
+                                                                                <div className="font-bold text-supabase-text">{parent.full_name}</div>
+                                                                                <div className="text-[10px] text-supabase-muted">{parent.phone}</div>
+                                                                            </div>
+                                                                            {admissionData.parent_id === parent.id && <CheckCircle2 size={14} className="text-supabase-green" />}
+                                                                        </button>
+                                                                    ))
+                                                                }
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    {admissionData.parent_id && !showAddParentForm && (
+                                                        <div className="flex items-center gap-2 mt-1 px-2 py-1 bg-supabase-green/10 border border-supabase-green/20 rounded-md">
+                                                            <CheckCircle2 size={12} className="text-supabase-green" />
+                                                            <span className="text-[10px] text-supabase-green font-medium">Linked to existing record</span>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setAdmissionData({...admissionData, parent_id: ''})}
+                                                                className="ml-auto text-[10px] text-supabase-muted hover:text-supabase-red"
+                                                            >
+                                                                Unlink
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {showAddParentForm && (
+                                                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-supabase-bg/50 border border-supabase-border rounded-xl animate-in fade-in slide-in-from-top-2">
+                                                        <div className="md:col-span-2 flex items-center justify-between mb-1">
+                                                            <span className="text-[10px] font-bold text-supabase-text uppercase tracking-widest">New Parent Details</span>
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setShowAddParentForm(false)}
+                                                                className="text-[10px] text-supabase-muted hover:text-supabase-red"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] text-supabase-muted uppercase font-bold">Full Name</label>
+                                                            <div className="relative">
+                                                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={14} />
+                                                                <input 
+                                                                    type="text"
+                                                                    value={newParent.full_name}
+                                                                    onChange={(e) => setNewParent({...newParent, full_name: e.target.value})}
+                                                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] text-supabase-muted uppercase font-bold">Phone</label>
+                                                            <div className="relative">
+                                                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={14} />
+                                                                <input 
+                                                                    type="text"
+                                                                    value={newParent.phone}
+                                                                    onChange={(e) => setNewParent({...newParent, phone: e.target.value})}
+                                                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] text-supabase-muted uppercase font-bold">Email</label>
+                                                            <div className="relative">
+                                                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={14} />
+                                                                <input 
+                                                                    type="email"
+                                                                    value={newParent.email}
+                                                                    onChange={(e) => setNewParent({...newParent, email: e.target.value})}
+                                                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] text-supabase-muted uppercase font-bold">Occupation</label>
+                                                            <div className="relative">
+                                                                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 text-supabase-muted" size={14} />
+                                                                <input 
+                                                                    type="text"
+                                                                    value={newParent.occupation}
+                                                                    onChange={(e) => setNewParent({...newParent, occupation: e.target.value})}
+                                                                    className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-9 pr-3 py-1.5 text-sm text-supabase-text focus:outline-none focus:border-supabase-green"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="md:col-span-2 space-y-2">
+                                                    <label className="text-[10px] font-bold text-supabase-muted uppercase tracking-widest">Address</label>
+                                                    <div className="relative">
+                                                        <MapPin className="absolute left-3 top-3 text-supabase-muted" size={16} />
+                                                        <textarea 
+                                                            required
+                                                            rows={2}
+                                                            value={admissionData.address}
+                                                            onChange={(e) => setAdmissionData({...admissionData, address: e.target.value})}
+                                                            className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg pl-10 pr-4 py-2 text-sm text-supabase-text focus:outline-none focus:border-supabase-green transition-all resize-none"
+                                                            placeholder="Full Residential Address"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {currentStep === 3 && (
+                                    <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+                                        <div className="flex items-center gap-2 pb-2 border-b border-supabase-border">
+                                            <div className="w-1 h-4 bg-supabase-green rounded-full"></div>
+                                            <h3 className="text-[11px] font-bold text-supabase-text uppercase tracking-widest">Review Admission Details</h3>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-supabase-sidebar/30 p-6 rounded-2xl border border-supabase-border">
+                                            <div className="space-y-4">
+                                                <h4 className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">Student Info</h4>
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-supabase-muted">Name:</span>
+                                                        <span className="text-supabase-text font-bold">{admissionData.full_name}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-supabase-muted">Roll No:</span>
+                                                        <span className="text-supabase-text font-bold">{admissionData.roll_number}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-supabase-muted">Class:</span>
+                                                        <span className="text-supabase-text font-bold">{admissionData.class_name}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-supabase-muted">DOB:</span>
+                                                        <span className="text-supabase-text font-bold">{admissionData.date_of_birth}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <h4 className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">Guardian Info</h4>
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-supabase-muted">Guardian:</span>
+                                                        <span className="text-supabase-text font-bold">{showAddParentForm ? newParent.full_name : admissionData.guardian_name}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-supabase-muted">Contact:</span>
+                                                        <span className="text-supabase-text font-bold">{showAddParentForm ? newParent.phone : admissionData.contact_number}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-xs">
+                                                        <span className="text-supabase-muted">Email:</span>
+                                                        <span className="text-supabase-text font-bold">{showAddParentForm ? newParent.email : admissionData.email}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="md:col-span-2 space-y-2 pt-4 border-t border-supabase-border/50">
+                                                <h4 className="text-[10px] font-black text-supabase-muted uppercase tracking-widest">Address</h4>
+                                                <p className="text-xs text-supabase-text leading-relaxed">{admissionData.address}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-supabase-green/10 border border-supabase-green/20 p-4 rounded-xl flex gap-3">
+                                            <CheckCircle2 className="text-supabase-green shrink-0" size={18} />
+                                            <p className="text-xs text-supabase-green leading-relaxed">
+                                                By clicking "Confirm Admission", you verify that all the above information is correct and the student is officially admitted to the institution.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="pt-6 border-t border-supabase-border flex gap-3">
-                                <button 
-                                    type="button"
-                                    onClick={() => setIsAdmissionModalOpen(false)}
-                                    className="flex-1 px-4 py-2 border border-supabase-border rounded-lg text-sm font-bold text-supabase-muted hover:text-supabase-text hover:bg-supabase-hover transition-all"
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="flex-1 bg-supabase-green text-black px-4 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/10 disabled:opacity-50"
-                                >
-                                    {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                                    Save
-                                </button>
+                                {currentStep > 1 && (
+                                    <button 
+                                        type="button"
+                                        onClick={() => setCurrentStep(prev => prev - 1)}
+                                        className="flex-1 px-4 py-2 border border-supabase-border rounded-lg text-sm font-bold text-supabase-muted hover:text-supabase-text hover:bg-supabase-hover transition-all"
+                                    >
+                                        Back
+                                    </button>
+                                )}
+                                {currentStep < 3 ? (
+                                    <button 
+                                        type="button"
+                                        onClick={() => setCurrentStep(prev => prev + 1)}
+                                        className="flex-1 bg-supabase-green text-black px-4 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/10"
+                                    >
+                                        Next Step
+                                        <ArrowRight size={18} />
+                                    </button>
+                                ) : (
+                                    <button 
+                                        type="submit"
+                                        disabled={isSubmitting}
+                                        className="flex-1 bg-supabase-green text-black px-4 py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-supabase-greenHover transition-all shadow-lg shadow-supabase-green/10 disabled:opacity-50"
+                                    >
+                                        {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                                        Confirm Admission
+                                    </button>
+                                )}
                             </div>
                         </form>
                     </div>
