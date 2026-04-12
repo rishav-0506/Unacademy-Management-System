@@ -4,6 +4,9 @@ import { RowStudent } from '../types';
 
 export const counsellingService = {
   async addRecord(record: Omit<RowStudent, 'id' | 'created_at'>) {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized. Please check your configuration.');
+    }
     const { data, error } = await supabase
       .from('row_students')
       .insert([record])
@@ -15,13 +18,31 @@ export const counsellingService = {
   },
 
   async getRecords() {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized. Please check your configuration.');
+    }
     const { data, error } = await supabase
       .from('row_students')
       .select('*')
-      .order('date', { ascending: false });
+      .order('created_at', { ascending: false });
     
     if (error) throw error;
     return data as RowStudent[];
+  },
+
+  async getLatestToken(prefix: string) {
+    if (!supabase) {
+      throw new Error('Supabase client not initialized. Please check your configuration.');
+    }
+    const { data, error } = await supabase
+      .from('row_students')
+      .select('token_no')
+      .like('token_no', `${prefix}%`)
+      .order('token_no', { ascending: false })
+      .limit(1);
+    
+    if (error) throw error;
+    return data?.[0]?.token_no || null;
   },
 
   async deleteRecord(id: string) {

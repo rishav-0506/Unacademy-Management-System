@@ -10,6 +10,7 @@ import ConfirmModal from './ConfirmModal';
 
 interface Employee {
   id: string;
+  employee_id?: string;
   full_name: string;
   email: string;
   mobile?: string;
@@ -265,7 +266,13 @@ const EmployeesView: React.FC = () => {
              if (error) throw error;
              showToast('Employee updated successfully', 'success');
           } else {
-             const { error } = await supabase.from('employees').insert([formData]);
+             const now = new Date();
+             const year = now.getFullYear().toString().slice(-2);
+             const month = String(now.getMonth() + 1).padStart(2, '0');
+             const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+             const employee_id = `EID${year}${month}${randomNum}`;
+             
+             const { error } = await supabase.from('employees').insert([{ ...formData, employee_id }]);
              if (error) throw error;
              showToast('Employee added successfully', 'success');
           }
@@ -601,7 +608,7 @@ const EmployeesView: React.FC = () => {
                 <div className="flex flex-wrap justify-center md:justify-start items-center gap-4 text-supabase-muted">
                   <div className="flex items-center gap-2 text-[10px] font-mono tracking-widest">
                     <Fingerprint size={12} className="text-supabase-green" />
-                    ID: {emp.id.slice(0, 18).toUpperCase()}
+                    ID: {emp.employee_id || emp.id.slice(0, 18).toUpperCase()}
                   </div>
                   <div className="w-1 h-1 bg-supabase-border rounded-full hidden md:block"></div>
                   <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
@@ -729,7 +736,10 @@ const EmployeesView: React.FC = () => {
                                      </div>
                                      <div className="min-w-0 flex-1">
                                          <h3 className="font-black text-supabase-text truncate tracking-tight text-base leading-tight uppercase">{emp.full_name}</h3>
-                                         <div className="text-[10px] font-mono text-supabase-muted truncate mt-1 opacity-70">{emp.email || 'No email registered'}</div>
+                                         <div className="flex items-center gap-2 mt-1">
+                                           {emp.employee_id && <span className="text-[9px] font-mono text-supabase-green uppercase tracking-widest">{emp.employee_id}</span>}
+                                           <div className="text-[10px] font-mono text-supabase-muted truncate opacity-70">{emp.email || 'No email registered'}</div>
+                                         </div>
                                      </div>
                                  </div>
 

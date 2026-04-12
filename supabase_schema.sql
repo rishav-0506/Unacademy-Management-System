@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS system_config (
 -- 1.5. Human Resources (Moved up to avoid forward reference)
 CREATE TABLE IF NOT EXISTS employees (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id TEXT UNIQUE,
     full_name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     mobile TEXT,
@@ -278,6 +279,9 @@ CREATE TABLE IF NOT EXISTS registrations (
     class_id UUID REFERENCES classes(id),
     status TEXT DEFAULT 'pending', -- pending, approved, rejected, admitted
     registration_fee_status TEXT DEFAULT 'unpaid',
+    counsellor_eid TEXT,
+    map_leader_eid TEXT,
+    row_student_token_no TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -297,11 +301,9 @@ CREATE TABLE IF NOT EXISTS row_students (
     gender TEXT,
     date_of_birth DATE,
     current_class TEXT,
-    parents_name TEXT,
     email TEXT,
     address TEXT,
-    parent_contact_no TEXT,
-    occupation TEXT,
+    parent_data JSONB DEFAULT '{}'::jsonb,
     course_interest JSONB DEFAULT '{}'::jsonb,
     additional_information JSONB DEFAULT '{}'::jsonb,
     status TEXT DEFAULT 'pending',
@@ -309,6 +311,10 @@ CREATE TABLE IF NOT EXISTS row_students (
     approved_by TEXT,
     rejected_by TEXT,
     last_edited_by TEXT,
+    token_no TEXT,
+    counsellor TEXT,
+    counsellor_eid TEXT,
+    map_leader_eid TEXT,
     activity_log JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

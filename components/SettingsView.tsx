@@ -763,7 +763,7 @@ const SettingsView: React.FC = () => {
                                 <td className="px-4 py-2">
                                   <div className="flex flex-col">
                                     <span className="text-sm font-medium text-supabase-text">{emp.full_name}</span>
-                                    <span className="text-[9px] font-mono text-supabase-muted">{emp.id?.substring(0, 8) || 'N/A'}...</span>
+                                    <span className="text-[9px] font-mono text-supabase-muted">{emp.employee_id || emp.id?.substring(0, 8)}</span>
                                   </div>
                                 </td>
                                 <td className="px-4 py-2 text-right">
@@ -819,7 +819,9 @@ const SettingsView: React.FC = () => {
                               <td className="px-4 py-2">
                                 <div className="flex flex-col">
                                   <span className="text-sm font-medium text-supabase-text">{leader.name}</span>
-                                  <span className="text-[9px] font-mono text-supabase-muted">{leader.uuid?.substring(0, 8) || 'N/A'}...</span>
+                                  <span className="text-[9px] font-mono text-supabase-muted">
+                                    {leader.employee_id || allEmployees.find(e => e.id === leader.uuid)?.employee_id || leader.uuid?.substring(0, 8)}
+                                  </span>
                                 </div>
                               </td>
                               <td className="px-4 py-2 text-right">
@@ -885,7 +887,7 @@ const SettingsView: React.FC = () => {
                                 <td className="px-4 py-2">
                                   <div className="flex flex-col">
                                     <span className="text-sm font-medium text-supabase-text">{emp.full_name}</span>
-                                    <span className="text-[9px] font-mono text-supabase-muted">{emp.id?.substring(0, 8) || 'N/A'}...</span>
+                                    <span className="text-[9px] font-mono text-supabase-muted">{emp.employee_id || emp.id?.substring(0, 8)}</span>
                                   </div>
                                 </td>
                                 <td className="px-4 py-2 text-right">
@@ -941,7 +943,9 @@ const SettingsView: React.FC = () => {
                               <td className="px-4 py-2">
                                 <div className="flex flex-col">
                                   <span className="text-sm font-medium text-supabase-text">{c.name}</span>
-                                  <span className="text-[9px] font-mono text-supabase-muted">{c.uuid?.substring(0, 8) || 'N/A'}...</span>
+                                  <span className="text-[9px] font-mono text-supabase-muted">
+                                    {c.employee_id || allEmployees.find(e => e.id === c.uuid)?.employee_id || c.uuid?.substring(0, 8)}
+                                  </span>
                                 </div>
                               </td>
                               <td className="px-4 py-2 text-right">

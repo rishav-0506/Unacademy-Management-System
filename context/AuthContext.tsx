@@ -245,7 +245,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           try {
             const { data: empData, error: empError } = await fetchWithTimeout(
-              supabase.from('employees').select('id, full_name, status')
+              supabase.from('employees').select('id, employee_id, full_name, status')
             ) as any;
             if (empError) console.error("Error loading employees:", empError.message);
             if (empData) setAllEmployees(empData as Employee[]);
@@ -465,7 +465,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newLeader: MapLeader = {
         id: Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
         uuid: employee.id,
-        name: employee.full_name
+        name: employee.full_name,
+        employee_id: employee.employee_id
       };
       updatedLeaders = [...mapLeaders, newLeader];
     }
@@ -484,7 +485,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newCounsellor: Counsellor = {
         id: Math.floor(Math.random() * 10000).toString().padStart(4, '0'),
         uuid: employee.id,
-        name: employee.full_name
+        name: employee.full_name,
+        employee_id: employee.employee_id
       };
       updatedCounsellors = [...counsellors, newCounsellor];
     }

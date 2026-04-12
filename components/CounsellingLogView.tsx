@@ -206,7 +206,7 @@ const CounsellingLogView: React.FC = () => {
         r.token_no || '',
         r.contact_no,
         r.gender,
-        `"${r.parents_name}"`,
+        `"${r.parent_data?.parents_name || ''}"`,
         `"${r.course_interest.preferred_course}"`
       ].join(','))
     ].join('\n');
@@ -325,7 +325,7 @@ const CounsellingLogView: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-2 text-xs text-supabase-muted">
                           <User size={12} />
-                          {record.parents_name}
+                          {record.parent_data?.parents_name || 'N/A'}
                         </div>
                       </div>
                     </td>
@@ -489,8 +489,8 @@ const CounsellingLogView: React.FC = () => {
                       <label className="text-[9px] text-supabase-muted uppercase font-bold mb-1 block">Parent Name</label>
                       <input 
                         type="text" 
-                        name="parents_name"
-                        value={editFormData.parents_name || ''}
+                        name="parent_data.parents_name"
+                        value={editFormData.parent_data?.parents_name || ''}
                         onChange={handleEditChange}
                         className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-4 py-2 text-sm text-supabase-text focus:border-supabase-green outline-none"
                       />
@@ -499,8 +499,8 @@ const CounsellingLogView: React.FC = () => {
                       <label className="text-[9px] text-supabase-muted uppercase font-bold mb-1 block">Parent Contact No</label>
                       <input 
                         type="tel" 
-                        name="parent_contact_no"
-                        value={editFormData.parent_contact_no || ''}
+                        name="parent_data.parent_contact_no"
+                        value={editFormData.parent_data?.parent_contact_no || ''}
                         onChange={handleEditChange}
                         className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-4 py-2 text-sm text-supabase-text focus:border-supabase-green outline-none"
                       />
@@ -509,8 +509,8 @@ const CounsellingLogView: React.FC = () => {
                       <label className="text-[9px] text-supabase-muted uppercase font-bold mb-1 block">Occupation</label>
                       <input 
                         type="text" 
-                        name="occupation"
-                        value={editFormData.occupation || ''}
+                        name="parent_data.occupation"
+                        value={editFormData.parent_data?.occupation || ''}
                         onChange={handleEditChange}
                         className="w-full bg-supabase-sidebar border border-supabase-border rounded-lg px-4 py-2 text-sm text-supabase-text focus:border-supabase-green outline-none"
                       />
@@ -653,15 +653,15 @@ const CounsellingLogView: React.FC = () => {
                   <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] border-b border-blue-400/20 pb-2">Parent/Guardian Information</h4>
                   <div>
                     <p className="text-[9px] text-supabase-muted uppercase font-bold">Parent Name</p>
-                    <p className="text-sm text-supabase-text">{selectedRecord.parents_name}</p>
+                    <p className="text-sm text-supabase-text">{selectedRecord.parent_data?.parents_name || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-[9px] text-supabase-muted uppercase font-bold">Parent Contact</p>
-                    <p className="text-sm text-supabase-text">{selectedRecord.parent_contact_no}</p>
+                    <p className="text-sm text-supabase-text">{selectedRecord.parent_data?.parent_contact_no || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-[9px] text-supabase-muted uppercase font-bold">Occupation</p>
-                    <p className="text-sm text-supabase-text">{selectedRecord.occupation || 'N/A'}</p>
+                    <p className="text-sm text-supabase-text">{selectedRecord.parent_data?.occupation || 'N/A'}</p>
                   </div>
                 </div>
 

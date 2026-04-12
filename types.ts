@@ -105,6 +105,7 @@ export interface Teacher {
 
 export interface Employee {
   id: string;
+  employee_id?: string;
   full_name: string;
   email: string;
   mobile?: string;
@@ -184,12 +185,14 @@ export interface MapLeader {
   id: string;
   uuid: string;
   name: string;
+  employee_id?: string;
 }
 
 export interface Counsellor {
   id: string;
   uuid: string;
   name: string;
+  employee_id?: string;
 }
 
 export interface ActivityLogItem {
@@ -207,11 +210,13 @@ export interface RowStudent {
   gender: string;
   date_of_birth: string;
   current_class: string;
-  parents_name: string;
   email: string;
   address: string;
-  parent_contact_no: string;
-  occupation: string;
+  parent_data: {
+    parents_name: string;
+    parent_contact_no: string;
+    occupation: string;
+  };
   course_interest: {
     current_education_level: string;
     school_name: string;
@@ -236,4 +241,6 @@ export interface RowStudent {
   activity_log?: ActivityLogItem[];
   updated_at?: string;
   counsellor?: string;
+  counsellor_eid?: string;
+  map_leader_eid?: string;
 }

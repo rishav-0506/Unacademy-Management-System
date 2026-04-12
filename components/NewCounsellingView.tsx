@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { counsellingService } from '../services/counsellingService';
 import { academicService, PreferredCourse } from '../services/academicService';
 import { systemConfigService } from '../services/systemConfigService';
-import { LeadSource, Counsellor, MapLeader } from '../types';
+import { LeadSource, Counsellor, MapLeader, RowStudent } from '../types';
 
 const NewCounsellingView: React.FC = () => {
   const { showToast } = useToast();
@@ -31,11 +31,13 @@ const NewCounsellingView: React.FC = () => {
     gender: '',
     date_of_birth: '',
     current_class: '',
-    parents_name: '',
     email: '',
     address: '',
-    parent_contact_no: '',
-    occupation: '',
+    parent_data: {
+      parents_name: '',
+      parent_contact_no: '',
+      occupation: ''
+    },
     counsellor: '',
     course_interest: {
       current_education_level: '',
@@ -170,39 +172,56 @@ const NewCounsellingView: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Submitting counselling form...', formData);
     setIsSubmitting(true);
     try {
       const creator = user?.name || 'Unknown';
       
       // Generate Token
-      const records = await counsellingService.getRecords();
       const now = new Date();
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
       const prefix = `UT${year}${month}`;
       
-      const existingTokens = records
-        .filter(r => r.token_no && r.token_no.startsWith(prefix))
-        .map(r => parseInt(r.token_no!.slice(-4), 10))
-        .filter(n => !isNaN(n));
+      console.log('Generating token with prefix:', prefix);
+      const latestToken = await counsellingService.getLatestToken(prefix);
+      console.log('Latest token found:', latestToken);
       
-      const maxToken = existingTokens.length > 0 ? Math.max(...existingTokens) : 0;
-      const nextToken = String(maxToken + 1).padStart(4, '0');
-      const token_no = `${prefix}${nextToken}`;
+      let nextNumber = 1;
+      if (latestToken) {
+        const lastFour = latestToken.slice(-4);
+        const parsed = parseInt(lastFour, 10);
+        if (!isNaN(parsed)) {
+          nextNumber = parsed + 1;
+        }
+      }
+      
+      const token_no = `${prefix}${String(nextNumber).padStart(4, '0')}`;
+      console.log('Generated new token:', token_no);
 
-      await counsellingService.addRecord({
+      const selectedCounsellor = counsellors.find(c => c.name === formData.counsellor);
+      const selectedMapLeader = mapLeaders.find(ml => ml.name === formData.additional_information.map_leader);
+
+      const recordToSave: Omit<RowStudent, 'id' | 'created_at'> = {
         ...formData,
         status: '0',
         token_no,
         created_by: creator,
+        counsellor_eid: selectedCounsellor?.employee_id,
+        map_leader_eid: selectedMapLeader?.employee_id,
         activity_log: [
           {
-            action: 'created',
+            action: 'created' as const,
             user: creator,
             timestamp: new Date().toISOString()
           }
         ]
-      });
+      };
+
+      console.log('Saving record to database...', recordToSave);
+      await counsellingService.addRecord(recordToSave);
+      console.log('Record saved successfully');
+      
       showToast(`Counselling record saved successfully. Token: ${token_no}`, 'success');
       // Reset form
       setFormData({
@@ -212,11 +231,13 @@ const NewCounsellingView: React.FC = () => {
         gender: '',
         date_of_birth: '',
         current_class: '',
-        parents_name: '',
         email: '',
         address: '',
-        parent_contact_no: '',
-        occupation: '',
+        parent_data: {
+          parents_name: '',
+          parent_contact_no: '',
+          occupation: ''
+        },
         counsellor: user?.name || '',
         course_interest: {
           current_education_level: '',
@@ -233,7 +254,9 @@ const NewCounsellingView: React.FC = () => {
         }
       });
     } catch (error: any) {
-      showToast(error.message || 'Failed to save record', 'error');
+      console.error('Error saving counselling record:', error);
+      const errorMessage = error.message || error.details || (typeof error === 'string' ? error : 'An unknown error occurred while saving.');
+      showToast(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -334,9 +357,9 @@ const NewCounsellingView: React.FC = () => {
               <label className={labelClasses}>Parent/Guardian Name</label>
               <input 
                 type="text" 
-                name="parents_name"
+                name="parent_data.parents_name"
                 placeholder="Full name of parent"
-                value={formData.parents_name}
+                value={formData.parent_data.parents_name}
                 onChange={handleChange}
                 className={inputClasses}
               />
@@ -345,9 +368,9 @@ const NewCounsellingView: React.FC = () => {
               <label className={labelClasses}>Parent Contact No</label>
               <input 
                 type="tel" 
-                name="parent_contact_no"
+                name="parent_data.parent_contact_no"
                 placeholder="Parent's mobile"
-                value={formData.parent_contact_no}
+                value={formData.parent_data.parent_contact_no}
                 onChange={handleChange}
                 className={inputClasses}
               />
@@ -356,9 +379,9 @@ const NewCounsellingView: React.FC = () => {
               <label className={labelClasses}>Parent Occupation</label>
               <input 
                 type="text" 
-                name="occupation"
+                name="parent_data.occupation"
                 placeholder="e.g. Business, Service"
-                value={formData.occupation}
+                value={formData.parent_data.occupation}
                 onChange={handleChange}
                 className={inputClasses}
               />

@@ -36,14 +36,21 @@ interface Registration {
     class_id: string;
     status: string; // '0' | '1' | '2' | '3' | '4' | '5'
     registration_fee_status: 'paid' | 'unpaid';
+    counsellor_eid?: string;
+    map_leader_eid?: string;
+    row_student_token_no?: string;
     created_at: string;
     counselling_data?: any;
 }
 
 const getStatusLabel = (status: string | undefined) => {
-    switch (status?.toString().toLowerCase()) {
+    const s = status?.toString().toLowerCase();
+    switch (s) {
+      case '0':
       case '30': return 'Pending';
+      case '1':
       case '31': return 'Approved';
+      case '2':
       case '32': return 'Reject';
       case '33': return 'Special Approval';
       case '40': return 'Admission Pending';
@@ -57,8 +64,8 @@ const getStatusLabel = (status: string | undefined) => {
 
 const getStatusColor = (status: string | undefined) => {
     const s = status?.toString().toLowerCase();
-    if (['31', '33', '41', '43', '5', 'admitted'].includes(s || '')) return 'bg-supabase-green/10 text-supabase-green';
-    if (['32', '42', 'reject', 'rejected'].includes(s || '')) return 'bg-red-500/10 text-red-500';
+    if (['1', '31', '33', '41', '43', '5', 'admitted'].includes(s || '')) return 'bg-supabase-green/10 text-supabase-green';
+    if (['2', '32', '42', 'reject', 'rejected'].includes(s || '')) return 'bg-red-500/10 text-red-500';
     return 'bg-yellow-500/10 text-yellow-500';
 };
 
@@ -124,12 +131,15 @@ const RegistrationView: React.FC = () => {
                         sid: regInfo?.sid,
                         row_student_id: record.id,
                         student_name: record.student_name,
-                        parent_name: record.parents_name,
+                        parent_name: record.parent_data?.parents_name || '',
                         phone: record.contact_no,
                         email: record.email || '',
-                        class_id: record.additional_information?.class_id || '',
+                        class_id: record.additional_information?.class_id || null,
                         status: record.status || '3',
                         registration_fee_status: record.additional_information?.registration_fee_status || 'unpaid',
+                        counsellor_eid: regInfo?.counsellor_eid,
+                        map_leader_eid: regInfo?.map_leader_eid,
+                        row_student_token_no: regInfo?.row_student_token_no,
                         created_at: record.created_at || new Date().toISOString(),
                         counselling_data: record
                     };
@@ -150,15 +160,17 @@ const RegistrationView: React.FC = () => {
             const newRecord: Omit<RowStudent, 'id' | 'created_at'> = {
                 date: new Date().toISOString().split('T')[0],
                 student_name: formData.student_name || '',
-                parents_name: formData.parent_name || '',
                 contact_no: formData.phone || '',
                 email: formData.email || '',
                 current_class: classes.find(c => c.id === formData.class_id)?.name || '',
                 gender: '',
                 date_of_birth: '',
                 address: '',
-                parent_contact_no: '',
-                occupation: '',
+                parent_data: {
+                    parents_name: formData.parent_name || '',
+                    parent_contact_no: '',
+                    occupation: ''
+                },
                 course_interest: {
                     current_education_level: '',
                     school_name: '',
@@ -197,53 +209,55 @@ const RegistrationView: React.FC = () => {
     };
 
     const generateSID = async () => {
-        const year = new Date().getFullYear().toString().slice(-2);
-        const { data: lastReg } = await supabase
-            .from('registrations')
-            .select('sid')
-            .order('sid', { ascending: false })
-            .limit(1);
+        const now = new Date();
+        const year = now.getFullYear().toString().slice(-2);
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const randomDigits = Math.floor(Math.random() * 100000).toString().padStart(5, '0');
         
-        let nextNum = 1;
-        if (lastReg && lastReg.length > 0 && lastReg[0]?.sid) {
-            const lastSid = lastReg[0].sid;
-            // Extract the last 5 digits
-            const lastNumStr = lastSid.slice(-5);
-            const lastNum = parseInt(lastNumStr);
-            if (!isNaN(lastNum)) {
-                nextNum = lastNum + 1;
-            }
-        }
-        
-        return `SID${year}${nextNum.toString().padStart(5, '0')}`;
+        return `SID${year}${month}${randomDigits}`;
     };
 
     const updateStatus = async (id: string, newStatus: Registration['status']) => {
         if (!supabase) return;
         try {
-            // If status is being updated to '31' (Approved), generate SID and save to registrations table
-            if (newStatus === '31') {
+            // If status is being updated to '1' or '31' (Approved), generate SID and save to registrations table
+            if (newStatus === '1' || newStatus === '31') {
                 const record = registrations.find(r => r.id === id);
+                console.log("Found record for approval:", record);
                 if (record) {
                     const sid = await generateSID();
+                    console.log("Generated SID:", sid);
+                    console.log("Record data for registration:", record);
                     
                     // Check if registration already exists
-                    const { data: existingReg } = await supabase
+                    const { data: existingReg, error: checkError } = await supabase
                         .from('registrations')
                         .select('id')
                         .eq('row_student_id', id)
                         .single();
 
+                    if (checkError && checkError.code !== 'PGRST116') {
+                        console.error("Error checking existing registration:", checkError);
+                    }
+
                     if (existingReg) {
-                        await supabase
+                        const { error: updateError } = await supabase
                             .from('registrations')
                             .update({ 
                                 sid: sid,
-                                status: 'approved'
+                                status: 'approved',
+                                counsellor_eid: record.counselling_data?.counsellor_eid,
+                                map_leader_eid: record.counselling_data?.map_leader_eid,
+                                row_student_token_no: record.counselling_data?.token_no
                             })
                             .eq('row_student_id', id);
+                        
+                        if (updateError) {
+                            console.error("Error updating registration:", updateError);
+                            throw updateError;
+                        }
                     } else {
-                        await supabase
+                        const { error: insertError } = await supabase
                             .from('registrations')
                             .insert([{
                                 sid: sid,
@@ -252,10 +266,18 @@ const RegistrationView: React.FC = () => {
                                 parent_name: record.parent_name,
                                 phone: record.phone,
                                 email: record.email,
-                                class_id: record.class_id,
+                                class_id: record.class_id || null,
                                 status: 'approved',
-                                registration_fee_status: record.registration_fee_status
+                                registration_fee_status: record.registration_fee_status,
+                                counsellor_eid: record.counselling_data?.counsellor_eid,
+                                map_leader_eid: record.counselling_data?.map_leader_eid,
+                                row_student_token_no: record.counselling_data?.token_no
                             }]);
+                        
+                        if (insertError) {
+                            console.error("Error inserting registration:", insertError);
+                            throw insertError;
+                        }
                     }
                 }
             }
@@ -754,7 +776,12 @@ const RegistrationView: React.FC = () => {
                                             };
                                             await counsellingService.updateRecord(selectedRegistration.id, { 
                                                 student_name: selectedRegistration.student_name,
-                                                parents_name: selectedRegistration.parent_name,
+                                                parent_data: {
+                                                    ...selectedRegistration.counselling_data?.parent_data,
+                                                    parents_name: selectedRegistration.parent_name,
+                                                    parent_contact_no: selectedRegistration.counselling_data?.parent_data?.parent_contact_no || '',
+                                                    occupation: selectedRegistration.counselling_data?.parent_data?.occupation || ''
+                                                },
                                                 contact_no: selectedRegistration.phone,
                                                 email: selectedRegistration.email,
                                                 current_class: classes.find(c => c.id === selectedRegistration.class_id)?.name || '',
@@ -788,7 +815,12 @@ const RegistrationView: React.FC = () => {
                                             await counsellingService.updateRecord(selectedRegistration.id, { 
                                                 status: '5',
                                                 student_name: selectedRegistration.student_name,
-                                                parents_name: selectedRegistration.parent_name,
+                                                parent_data: {
+                                                    ...selectedRegistration.counselling_data?.parent_data,
+                                                    parents_name: selectedRegistration.parent_name,
+                                                    parent_contact_no: selectedRegistration.counselling_data?.parent_data?.parent_contact_no || '',
+                                                    occupation: selectedRegistration.counselling_data?.parent_data?.occupation || ''
+                                                },
                                                 contact_no: selectedRegistration.phone,
                                                 email: selectedRegistration.email,
                                                 current_class: classes.find(c => c.id === selectedRegistration.class_id)?.name || '',
